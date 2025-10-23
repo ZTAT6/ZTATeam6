@@ -1,114 +1,104 @@
-# 🎓 Triển khai Website theo mô hình Zero Trust Access cho Hệ thống Học tập Trực tuyến  
+# 🎓 Zero Trust Access-Based Online Learning System  
 
-## 🧩 Giới thiệu  
-Dự án này phát triển **một nền tảng học tập trực tuyến** áp dụng mô hình **Zero Trust Access** (“Không tin tưởng mặc định, luôn xác minh”).  
-Mọi yêu cầu truy cập đều được xác thực và kiểm tra quyền hạn, giúp đảm bảo tính bảo mật, phân quyền rõ ràng và khả năng theo dõi toàn diện trong toàn bộ hệ thống.  
-Hệ thống hỗ trợ **phân cấp bậc truy cập** (học viên → giảng viên → trưởng bộ môn → quản trị viên), đồng thời tích hợp **thống kê, giám sát, báo cáo và cảnh báo bảo mật**.
+> Developed by **Team ZTATeam6** — Secure. Scalable. Smart.  
 
 ---
 
-## 🚀 Tính năng chính  
-- 🔐 Xác thực người dùng (JWT / OAuth2)  
-- 👥 Phân quyền & phân cấp truy cập (RBAC + Hierarchical Access Control)  
-- 🧑‍🏫 Quản lý người dùng, khóa học, bài giảng, nội dung học tập  
-- 📊 Thống kê & báo cáo: số lượng người dùng, lượt truy cập, hoạt động học tập  
-- 🕵️ Ghi log & theo dõi hoạt động (Activity Log, Audit Trail)  
-- 🧠 Phát hiện hành vi bất thường và cảnh báo bảo mật  
-- ⚙️ Dashboard quản trị hệ thống: giám sát, phân quyền, báo cáo  
+## 🧩 Overview  
+
+This project implements a **Zero Trust Access Model (ZTNA)** for an **Online Learning Platform**, ensuring that no entity — user, device, or service — is trusted by default.  
+Each access request is authenticated, authorized, and continuously monitored.  
+
+The system features **role-based hierarchical access control**, **real-time monitoring**, and **security analytics**, providing a secure and intelligent learning environment for all users.
 
 ---
 
-## 🧱 Kiến trúc & Mô hình Zero Trust  
+## 🚀 Key Features  
 
-### Nguyên tắc cốt lõi  
-- **Never Trust, Always Verify** – Mọi truy cập đều phải xác minh.  
-- **Least-Privilege Access** – Cấp quyền tối thiểu cần thiết.  
-- **Micro-Segmentation** – Phân tách mạng và người dùng theo khu vực truy cập.  
-- **Continuous Monitoring** – Giám sát và ghi log toàn bộ hoạt động.  
-
-### Mô hình triển khai tổng quan  
-Client (Browser/Mobile)
-↓
-API Gateway / Auth Layer
-↓
-Service Layer (Business Logic)
-↓
-Database + Audit Logs
+- 🔐 **Zero Trust Authentication** – Every access request is verified (JWT / OAuth2)  
+- 👥 **Role & Hierarchy Management** – Multi-level permissions (Student → Instructor → Head → Admin)  
+- 🧑‍🏫 **Course & Content Management** – Upload, edit, and manage learning materials  
+- 📊 **Real-time Dashboard** – Track users, sessions, and activity metrics  
+- 🕵️ **Activity Logging & Auditing** – Detailed user activity and event tracking  
+- ⚠️ **Anomaly Detection** – Identify unusual login patterns and IP anomalies  
+- 📡 **Secure APIs** – Protected by HTTPS, WAF, and rate-limiting  
+- 🔧 **Admin Tools** – Manage users, assign roles, and monitor performance  
 
 ---
 
-## 🧰 Công nghệ sử dụng  
-| Thành phần | Công nghệ gợi ý |
-|-------------|-----------------|
-| **Frontend** | React |
-| **Backend** |  Node.js (Express)e |
-| **CSDL** | MongoDB |
-| **Xác thực & Bảo mật** | JWT / OAuth2 |
-| **DevOps** | GitHub |
-| **Giao thức bảo mật** | HTTPS, MFA, WAF |
+## 🧱 Zero Trust Architecture  
+
+### 🔑 Core Security Principles  
+
+- **Never Trust, Always Verify** – Authentication at every access point  
+- **Least Privilege Access** – Limit permissions to only what’s necessary  
+- **Micro-Segmentation** – Isolate resources and services by security zone  
+- **Continuous Monitoring** – Real-time audit logs and event tracking  
+
+### 🧩 System Model  
+
+```text
+┌─────────────────────────────┐
+│       🧑‍💻 Client Layer       │
+│  (Web Browser / Mobile App) │
+└──────────────┬──────────────┘
+               │ HTTPS / REST API
+               ▼
+┌─────────────────────────────┐
+│  🚪 API Gateway / Auth Service │
+│ - Handles authentication & tokens  │
+│ - Enforces Zero Trust policies     │
+│ - Routes verified requests         │
+└──────────────┬──────────────┘
+               │ Internal secure channel
+               ▼
+┌─────────────────────────────┐
+│ ⚙️ Service Layer (Business Logic) │
+│ - Processes learning operations     │
+│ - Applies RBAC & validation rules   │
+│ - Interacts with database securely  │
+└──────────────┬──────────────┘
+               │ SQL / NoSQL queries + audit logs
+               ▼
+┌─────────────────────────────┐
+│ 🗄️ Data & Monitoring Layer   │
+│ - Database (MySQL / MongoDB) │
+│ - Audit logs & event records │
+│ - Monitoring (Grafana, ELK)  │
+└─────────────────────────────┘
+```
+
+
+## 🧰 Tech Stack  
+
+| Component | Technology |
+|------------|-------------|
+| **Frontend** | React (Vite) |
+| **Backend** | Node.js (Express)  |
+| **Database** |  MongoDB |
+| **Authentication** | JWT / OAuth2 |
+| **DevOps / CI-CD** | GitHub |
+| **Security Protocols** | HTTPS, MFA, WAF |
 
 ---
 
-## 🗂️ Cấu trúc dự án  
-/project-root
-├── frontend/ # Giao diện người dùng
-│ ├── src/
-│ └── package.json
-├── backend/ # API & business logic
-│ ├── src/
-│ └── pom.xml / package.json
-├── data/ # Script khởi tạo DB, migration
-├── infra/ # Dockerfile, CI/CD config
-└── README.md
-
 ---
 
-## ⚙️ Hướng dẫn cài đặt & chạy  
+## ⚙️ Installation & Setup  
 
-### 1️⃣ Yêu cầu hệ thống  
+### 1️⃣ System Requirements  
+
 - Node.js ≥ 18  
-- Java ≥ 17  
-- MySQL ≥ 8.0  
-- Docker (tùy chọn)
+- Java ≥ 17 (if Spring Boot backend)  
+- MongoDB ≥ 6.0  
 
-### 2️⃣ Thiết lập cơ sở dữ liệu  
-```sql
-CREATE DATABASE e_learning CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'elearn_user'@'%' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON e_learning.* TO 'elearn_user'@'%';
-3️⃣ Chạy backend
-cd backend
-./mvnw spring-boot:run     # nếu dùng Spring Boot
-4️⃣ Chạy frontend
+---
 
-cd frontend
-npm install
-npm run dev
-👉 Truy cập tại: http://localhost:3000
+🔮 Future Improvements
+🤖 AI-based adaptive access control
 
-🔧 Cấu hình môi trường
-Frontend (.env)
+💬 Real-time chat and collaboration tools
 
-VITE_API_BASE_URL=http://localhost:8080/api  
-VITE_APP_NAME=E-LearningZeroTrust  
-Backend (application.properties)
+🌐 Multi-tenant deployment for institutions
 
-spring.datasource.url=jdbc:mysql://localhost:3306/e_learning
-spring.datasource.username=elearn_user
-spring.datasource.password=your_password
-
-jwt.secret=your_jwt_secret_key
-logging.level.root=INFO
-👥 Phân quyền & Vai trò người dùng
-Vai trò	Quyền hạn
-Learner (Học viên)	Đăng ký khóa học, tham gia, xem nội dung được phép
-Instructor (Giảng viên)	Tạo & quản lý khóa học, học viên
-Department Head (Trưởng bộ môn)	Giám sát giảng viên, thống kê nội bộ
-Admin (Quản trị viên)	Toàn quyền quản lý hệ thống, logs, bảo mật
-
-📊 Thống kê & Theo dõi
-Activity Log: ghi lại mọi hành động người dùng
-
-Báo cáo: số học viên, khóa học, lượt truy cập, thời lượng học
-
-Cảnh báo: phát hiện truy cập bất thường, IP lạ, lỗi xác thực
+🔐 Integration with Zero Trust Network Access (ZTNA) systems
