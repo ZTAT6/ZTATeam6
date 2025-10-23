@@ -1,70 +1,114 @@
-# Getting Started with Create React App
+# 🎓 Triển khai Website theo mô hình Zero Trust Access cho Hệ thống Học tập Trực tuyến  
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+## 🧩 Giới thiệu  
+Dự án này phát triển **một nền tảng học tập trực tuyến** áp dụng mô hình **Zero Trust Access** (“Không tin tưởng mặc định, luôn xác minh”).  
+Mọi yêu cầu truy cập đều được xác thực và kiểm tra quyền hạn, giúp đảm bảo tính bảo mật, phân quyền rõ ràng và khả năng theo dõi toàn diện trong toàn bộ hệ thống.  
+Hệ thống hỗ trợ **phân cấp bậc truy cập** (học viên → giảng viên → trưởng bộ môn → quản trị viên), đồng thời tích hợp **thống kê, giám sát, báo cáo và cảnh báo bảo mật**.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## 🚀 Tính năng chính  
+- 🔐 Xác thực người dùng (JWT / OAuth2)  
+- 👥 Phân quyền & phân cấp truy cập (RBAC + Hierarchical Access Control)  
+- 🧑‍🏫 Quản lý người dùng, khóa học, bài giảng, nội dung học tập  
+- 📊 Thống kê & báo cáo: số lượng người dùng, lượt truy cập, hoạt động học tập  
+- 🕵️ Ghi log & theo dõi hoạt động (Activity Log, Audit Trail)  
+- 🧠 Phát hiện hành vi bất thường và cảnh báo bảo mật  
+- ⚙️ Dashboard quản trị hệ thống: giám sát, phân quyền, báo cáo  
 
-### `npm start`
+---
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## 🧱 Kiến trúc & Mô hình Zero Trust  
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Nguyên tắc cốt lõi  
+- **Never Trust, Always Verify** – Mọi truy cập đều phải xác minh.  
+- **Least-Privilege Access** – Cấp quyền tối thiểu cần thiết.  
+- **Micro-Segmentation** – Phân tách mạng và người dùng theo khu vực truy cập.  
+- **Continuous Monitoring** – Giám sát và ghi log toàn bộ hoạt động.  
 
-### `npm test`
+### Mô hình triển khai tổng quan  
+Client (Browser/Mobile)
+↓
+API Gateway / Auth Layer
+↓
+Service Layer (Business Logic)
+↓
+Database + Audit Logs
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## 🧰 Công nghệ sử dụng  
+| Thành phần | Công nghệ gợi ý |
+|-------------|-----------------|
+| **Frontend** | React |
+| **Backend** |  Node.js (Express)e |
+| **CSDL** | MongoDB |
+| **Xác thực & Bảo mật** | JWT / OAuth2 |
+| **DevOps** | GitHub |
+| **Giao thức bảo mật** | HTTPS, MFA, WAF |
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## 🗂️ Cấu trúc dự án  
+/project-root
+├── frontend/ # Giao diện người dùng
+│ ├── src/
+│ └── package.json
+├── backend/ # API & business logic
+│ ├── src/
+│ └── pom.xml / package.json
+├── data/ # Script khởi tạo DB, migration
+├── infra/ # Dockerfile, CI/CD config
+└── README.md
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## ⚙️ Hướng dẫn cài đặt & chạy  
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### 1️⃣ Yêu cầu hệ thống  
+- Node.js ≥ 18  
+- Java ≥ 17  
+- MySQL ≥ 8.0  
+- Docker (tùy chọn)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 2️⃣ Thiết lập cơ sở dữ liệu  
+```sql
+CREATE DATABASE e_learning CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'elearn_user'@'%' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON e_learning.* TO 'elearn_user'@'%';
+3️⃣ Chạy backend
+cd backend
+./mvnw spring-boot:run     # nếu dùng Spring Boot
+4️⃣ Chạy frontend
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+cd frontend
+npm install
+npm run dev
+👉 Truy cập tại: http://localhost:3000
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+🔧 Cấu hình môi trường
+Frontend (.env)
 
-## Learn More
+VITE_API_BASE_URL=http://localhost:8080/api  
+VITE_APP_NAME=E-LearningZeroTrust  
+Backend (application.properties)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+spring.datasource.url=jdbc:mysql://localhost:3306/e_learning
+spring.datasource.username=elearn_user
+spring.datasource.password=your_password
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+jwt.secret=your_jwt_secret_key
+logging.level.root=INFO
+👥 Phân quyền & Vai trò người dùng
+Vai trò	Quyền hạn
+Learner (Học viên)	Đăng ký khóa học, tham gia, xem nội dung được phép
+Instructor (Giảng viên)	Tạo & quản lý khóa học, học viên
+Department Head (Trưởng bộ môn)	Giám sát giảng viên, thống kê nội bộ
+Admin (Quản trị viên)	Toàn quyền quản lý hệ thống, logs, bảo mật
 
-### Code Splitting
+📊 Thống kê & Theo dõi
+Activity Log: ghi lại mọi hành động người dùng
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Báo cáo: số học viên, khóa học, lượt truy cập, thời lượng học
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Cảnh báo: phát hiện truy cập bất thường, IP lạ, lỗi xác thực
