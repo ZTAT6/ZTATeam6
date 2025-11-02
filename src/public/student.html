@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+    .card { max-width: 900px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; }
+    .muted { color: #6b7280; }
+    button { padding: 8px 12px; border-radius: 8px; border: 1px solid #3b82f6; background: #3b82f6; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Student Dashboard</h2>
+    <p class="muted">Only students can access this page.</p>
+    <p class="muted">Role: <span id="role">unknown</span></p>
+    <hr />
+    <h3>My Activity</h3>
+    <pre id="activity">Loading...</pre>
+    <button id="logout">Logout</button>
+  </div>
+  <script>
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    document.getElementById('role').textContent = role || 'unknown';
+    if (!token || role !== 'student') { window.location.href = '/'; }
+
+    async function loadActivity() {
+      const res = await fetch('/me/activity', { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      document.getElementById('activity').textContent = JSON.stringify(data, null, 2);
+    }
+    loadActivity();
+
+    document.getElementById('logout').addEventListener('click', async () => {
+      if (token) await fetch('/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      localStorage.clear();
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>

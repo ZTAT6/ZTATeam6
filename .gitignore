@@ -1,0 +1,19 @@
+# Root ignores
+node_modules/
+*.log
+.DS_Store
+.env
+
+# Client
+client/node_modules/
+client/dist/
+client/.env
+
+# Build and coverage
+coverage/
+dist/
+*.cache
+
+# IDE/editor
+.vscode/
+.idea/

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zero Trust | Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --blue-700: #0a4ea8;
+      --blue-600: #0c61cf;
+      --blue-500: #0e6de6;
+      --gray-100: #f5f6fa;
+      --gray-300: #e1e5eb;
+      --gray-600: #7a8899;
+      --text: #101827;
+      --brand: #f6782a;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: flex-start; padding-left: 8vw;
+      font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial; background: #f0f4ff; position: relative;
+    }
+    /* Mirrored background image via pseudo-element */
+    body::before { content: ""; position: fixed; inset: 0; z-index: 0;
+      background: url('/bg.jpg') center / cover no-repeat; transform: scaleX(-1);
+    }
+    /* Soft overlay for readability */
+    body::after { content: ""; position: fixed; inset: 0; z-index: 0; background: rgba(240,244,255,0.6); }
+    .wrapper {
+      width: 560px; max-width: 92vw; min-height: 640px; background: #fff; border: 2px solid #0f4da3;
+      border-radius: 18px; box-shadow: 0 10px 20px rgba(10,78,168,0.15);
+      padding: 32px 26px; color: var(--text);
+      overflow: hidden; /* Ensure sliding title doesn't spill outside card */
+      display: flex; flex-direction: column; justify-content: center; /* center contents vertically */
+      position: relative; z-index: 1;
+    }
+    .title-track { width: 100%; overflow: hidden; }
+    .title-inner { display: flex; width: 200%; transition: transform .3s ease; transform: translateX(0%); }
+    .title-inner h2 { width: 50%; margin: 0 0 18px 0; font-size: 32px; font-weight: 700; text-align: center; }
+    .slide-controls { display: flex; justify-content: center; border: 1px solid var(--gray-300); border-radius: 12px; overflow: hidden; }
+    .slide-controls label { flex: 1; text-align: center; padding: 12px 0; cursor: pointer; font-weight: 600; }
+    .slide-controls label.login { background: linear-gradient(90deg, var(--blue-700), var(--blue-500)); color: #fff; }
+    .slide-controls label.signup { background: #fff; color: #000; }
+    .slide-controls.active label.login { background: #fff; color: #000; }
+    .slide-controls.active label.signup { background: linear-gradient(90deg, var(--blue-600), var(--blue-500)); color: #fff; }
+    .form-container { width: 100%; overflow: hidden; }
+    .form-inner { display: flex; width: 200%; transition: transform .3s ease; transform: translateX(0%); }
+    form { width: 50%; padding: 16px 0 6px; }
+    .field { margin: 14px 0; }
+    input[type="email"], input[type="password"] {
+      width: 100%; padding: 14px 14px; border: 1px solid var(--gray-300); border-radius: 12px; font-size: 16px;
+    }
+    .actions { margin-top: 8px; display: flex; align-items: center; justify-content: center; }
+    .link { font-size: 14px; color: var(--blue-600); text-decoration: none; }
+    .btn { width: 100%; border: none; margin-top: 18px; border-radius: 14px; padding: 14px; font-weight: 700; font-size: 18px; color: #fff;
+      background: linear-gradient(90deg, var(--blue-700), var(--blue-500)); cursor: pointer; }
+    .notice { text-align: center; font-size: 14px; color: #222; margin-top: 12px; }
+    .error { color: #b3261e; font-size: 14px; min-height: 18px; text-align: center; }
+    /* Popup styles */
+    .popup-backdrop { position: fixed; inset: 0; background: rgba(16,24,39,0.45); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .popup { width: 320px; max-width: 92vw; background: #fff; border: 2px solid var(--blue-600); border-radius: 16px; box-shadow: 0 12px 24px rgba(0,0,0,0.2); padding: 18px; }
+    .popup h3 { margin: 0 0 8px 0; font-size: 18px; }
+    .popup p { margin: 0 0 12px 0; font-size: 14px; color: #111827; }
+    .popup-backdrop.visible { display: flex; }
+
+    /* Responsive: stack left column on small screens */
+    @media (max-width: 768px) {
+      .wrapper { width: 100%; max-width: 600px; margin: 0 6vw; }
+    }
+
+    /* Disable any background pseudo-elements */
+    body::before, body::after { display: none !important; content: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="title-track">
+      <div class="title-inner">
+        <h2 class="login">Login Form</h2>
+        <h2>Signup Form</h2>
+      </div>
+    </div>
+
+    <div class="slide-controls" id="tabs">
+      <label class="login">Login</label>
+      <label class="signup">Signup</label>
+    </div>
+
+    <div class="form-container">
+      <div class="form-inner">
+        <!-- Login form -->
+        <form class="login" id="loginForm">
+          <div class="field">
+            <input type="email" id="loginEmail" placeholder="Email Address" required />
+          </div>
+          <div class="field">
+            <input type="password" id="loginPassword" placeholder="Password" required />
+          </div>
+          <div class="actions">
+            <a class="link" href="#">Forgot password?</a>
+          </div>
+          <div class="error" id="loginError"></div>
+          <button class="btn" type="submit">Login</button>
+          <div class="notice">Not a member? <span class="signup-link"><a href="#">Signup now</a></span></div>
+        </form>
+
+        <!-- Signup form -->
+        <form class="signup" id="signupForm">
+          <div class="field">
+            <input type="email" id="signupEmail" placeholder="Email Address" required />
+          </div>
+          <div class="field">
+            <input type="password" id="signupPassword" placeholder="Password" minlength="8" required />
+          </div>
+          <div class="field">
+            <input type="password" id="signupPassword2" placeholder="Confirm password" minlength="8" required />
+          </div>
+          <div class="error" id="signupError"></div>
+          <button class="btn" type="submit">Signup</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Notification -->
+  <div id="popupBackdrop" class="popup-backdrop" aria-hidden="true">
+    <div class="popup" role="dialog" aria-modal="true" aria-labelledby="popupTitle" aria-describedby="popupMessage">
+      <h3 id="popupTitle">Notification</h3>
+      <p id="popupMessage">Something went wrong.</p>
+      <button id="popupOk" class="btn" type="button">OK</button>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
