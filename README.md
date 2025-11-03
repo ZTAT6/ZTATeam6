@@ -52,12 +52,12 @@ The system features **role-based hierarchical access control**, **real-time moni
 | Component | Technology |
 |------------|-------------|
 | **Frontend** | React (Vite) |
-| **Backend** | Node.js (Express) / Spring Boot |
-| **Database** | MySQL / MongoDB |
+| **Backend** | Node.js (Express)|
+| **Database** | MongoDB |
 | **Authentication** | JWT / OAuth2 |
-| **DevOps / CI-CD** | GitHub Actions + Docker |
+| **DevOps / CI-CD** | GitHub Actions |
 | **Monitoring** | Prometheus / Grafana / ELK Stack |
-| **Security Protocols** | HTTPS, MFA, WAF |
+| **Security Protocols** | HTTPS, MFA, ZTA |
 
 ---
 
@@ -71,7 +71,7 @@ ZTATeam6/
 │ ├── src/
 │ └── package.json / pom.xml
 ├── data/ # Database scripts / migrations
-├── infra/ # Dockerfile, Nginx, CI/CD configs
+├── infra/ #  Nginx, CI/CD configs
 └── README.md
 
 ## ⚙️ Installation & Setup  
@@ -79,8 +79,8 @@ ZTATeam6/
 ### 1️⃣ System Requirements  
 
 - Node.js ≥ 18  
-- Java ≥ 17 (if Spring Boot backend)  
-- MySQL ≥ 8.0 or MongoDB ≥ 6.0  
+- Javascript ≥ 17  
+- MongoDB ≥ 6.0  
 ---
 👥 User Roles & Permissions
 Role	Description	Permissions
@@ -99,13 +99,11 @@ Security Alerts – Auto-detect login anomalies and suspicious behavior
 ⚙️ DevOps & Deployment
 Tool	Purpose
 GitHub Actions	CI/CD automation for testing and deployment
-Docker & Docker Compose	Build, run, and orchestrate containers
 Nginx	Reverse proxy with HTTPS support
 Prometheus + Grafana	Monitor performance and uptime
 ELK Stack (Optional)	Centralized logging (Elasticsearch, Logstash, Kibana)
 
 🔮 Future Improvements
-🤖 AI-based adaptive access control
 
 💬 Real-time chat and collaboration tools
 
