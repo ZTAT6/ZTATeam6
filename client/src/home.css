@@ -1,0 +1,117 @@
+/* Home page styles inspired by Hocmai.vn but with our branding */
+:root {
+  --brand-primary: #0a4ea8;
+  --brand-secondary: #f9b233;
+  --brand-accent: #5ac8fa;
+  --bg: #f5f7fb;
+  --text: #1f2937;
+}
+
+body.home {
+  background: var(--bg);
+}
+
+/* Header */
+.hm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.hm-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hm-logo {
+  width: 42px; height: 42px; border-radius: 8px;
+  background: linear-gradient(135deg, var(--brand-primary), #0e6de6);
+}
+.hm-title {
+  font-weight: 800; font-size: 22px; color: var(--brand-primary);
+}
+.hm-auth a { color: var(--brand-primary); font-weight: 700; text-decoration: none; margin-left: 12px; }
+.hm-auth a:hover { text-decoration: underline; }
+
+/* Nav */
+.hm-nav {
+  display: flex;
+  gap: 18px;
+  padding: 10px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.hm-nav a { color: var(--text); font-weight: 600; text-decoration: none; }
+.hm-nav a:hover { color: var(--brand-primary); }
+
+/* Layout */
+.hm-container {
+  max-width: 1200px;
+  margin: 14px auto;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+/* Hero banner */
+.hm-hero {
+  position: relative;
+  background: linear-gradient(90deg, #6a11cb, #2575fc);
+  color: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  overflow: hidden;
+}
+.hm-hero h1 { margin: 0 0 6px; font-size: 28px; }
+.hm-hero p { margin: 0 0 12px; opacity: .95; }
+.hm-hero .cta { background: #fff; color: #1f2937; border-radius: 999px; padding: 10px 16px; font-weight: 800; }
+.hm-hero .badges { display:flex; gap:10px; margin-top:10px; }
+.hm-hero .badge { background: rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); color:#fff; padding:6px 10px; border-radius:999px; font-weight:700; font-size:12px; }
+
+/* Side news */
+.hm-news {
+  background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 12px;
+}
+.hm-news h3 { margin: 0 0 10px; font-size: 16px; color: var(--brand-primary); }
+.hm-news ul { list-style: none; padding: 0; margin: 0; }
+.hm-news li { padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+.hm-news li:last-child { border-bottom: none; }
+.hm-news a { color: var(--text); text-decoration: none; }
+.hm-news a:hover { color: var(--brand-primary); }
+
+/* banners row */
+.hm-banners {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;
+}
+.hm-banner {
+  background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 14px;
+}
+.hm-banner h4 { margin: 0 0 6px; color: var(--brand-primary); }
+.hm-banner p { margin: 0; color: #374151; }
+
+/* Search bar */
+.hm-search {
+  display: flex; gap: 8px; margin-top: 12px;
+}
+.hm-search input {
+  flex: 1; height: 40px; border: 1px solid #e5e7eb; border-radius: 999px; padding: 0 14px; font-size: 14px;
+}
+.hm-search button { height: 40px; border-radius: 999px; background: var(--brand-primary); }
+
+/* Chat bubble */
+.hm-chat {
+  position: fixed; right: 18px; bottom: 18px;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; padding: 10px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.07);
+}
+.hm-chat .label { font-weight: 700; color: var(--brand-primary); }
+
+/* Social proof */
+.hm-social { margin-top: 12px; display: flex; align-items: center; gap: 8px; color: #374151; }
+.hm-social .count { background: #fff; border: 1px solid #e5e7eb; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+
+@media (max-width: 960px) {
+  .hm-container { grid-template-columns: 1fr; }
+  .hm-banners { grid-template-columns: 1fr; }
+}

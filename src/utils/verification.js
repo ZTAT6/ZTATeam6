@@ -1,6 +1,44 @@
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 
+// Send OTP via SMS using Twilio REST API if configured
+export async function sendVerificationSMS({ to, code }) {
+  const sid = process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_AUTH_TOKEN;
+  const from = process.env.TWILIO_FROM_NUMBER; // e.g. "+1234567890"
+
+  if (!sid || !token || !from) {
+    console.log(`[dev] SMS verification code for ${to}: ${code}`);
+    return { dev: true };
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(sid)}/Messages.json`;
+  const body = new URLSearchParams({
+    To: to,
+    From: from,
+    Body: `Your verification code is: ${code}`,
+  });
+
+  // Use global fetch (Node >=18) to post to Twilio; otherwise, dev log above applies
+  const authHeader = "Basic " + Buffer.from(`${sid}:${token}`).toString("base64");
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: authHeader,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body,
+  });
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`SMS send failed: ${resp.status} ${text}`);
+  }
+
+  const data = await resp.json().catch(() => ({}));
+  return { sid: data.sid };
+}
+
 export function generateCode() {
   // 6-digit numeric code
   return (Math.floor(100000 + Math.random() * 900000)).toString();
