@@ -4,7 +4,8 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
+  email: { type: String, unique: true, sparse: true },
+  phone: { type: String, unique: true, sparse: true },
   full_name: String,
   role: { type: String, enum: ["admin", "teacher", "student"], required: true },
   created_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -103,15 +104,22 @@ export const EmailVerification = mongoose.model("EmailVerification", emailVerifi
 
 // SIGNUP VERIFICATIONS (defer user creation until email is verified)
 const signupVerificationSchema = new mongoose.Schema({
-  email: { type: String, required: true },
+  email: { type: String },
   username: { type: String, required: true },
   password_hashed: { type: String, required: true },
   full_name: String,
   role: { type: String, enum: ["admin", "teacher", "student"], default: "student" },
   code: { type: String, required: true },
+  phone: String,
+  channel: { type: String, enum: ["email", "sms"], default: "email" },
   created_at: { type: Date, default: Date.now },
   expires_at: Date,
   used_at: Date,
+  // email delivery metadata (synced after actual send)
+  delivery_message_id: String,
+  delivery_sent_at: Date,
+  delivery_dev: Boolean,
+  delivery_error: String,
 });
 
 signupVerificationSchema.index({ email: 1, created_at: -1 });
@@ -133,3 +141,23 @@ const loginChallengeSchema = new mongoose.Schema({
 loginChallengeSchema.index({ token: 1 }, { unique: true });
 
 export const LoginChallenge = mongoose.model("LoginChallenge", loginChallengeSchema);
+
+// PASSWORD RESET via OTP
+const passwordResetSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  code: { type: String, required: true },
+  channel: { type: String, enum: ["email", "sms"], required: true },
+  target: String, // email or phone used
+  created_at: { type: Date, default: Date.now },
+  expires_at: Date,
+  used_at: Date,
+  // delivery metadata
+  delivery_message_id: String,
+  delivery_sent_at: Date,
+  delivery_dev: Boolean,
+  delivery_error: String,
+});
+
+passwordResetSchema.index({ user_id: 1, created_at: -1 });
+
+export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import './App.css'
+import OtpInput from './components/OtpInput'
+import PasswordStrength, { scorePassword } from './components/PasswordStrength'
 
 function saveAuth(token, role) {
   localStorage.setItem('token', token)
@@ -45,6 +47,8 @@ function Protected({ allow, children }) {
 function LoginPage() {
   const nav = useNavigate()
   const [tab, setTab] = useState('login')
+  const [signupPassword, setSignupPassword] = useState('')
+  const [signupConfirm, setSignupConfirm] = useState('')
   async function onLogin(e) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -69,10 +73,17 @@ function LoginPage() {
     const form = new FormData(e.currentTarget)
     const username = form.get('username')
     const password = form.get('password')
+    const confirm = form.get('confirm_password')
+    const s = scorePassword(password)
+    if (password !== confirm) return alert('Passwords do not match')
+    if (s.score < 4) return alert('Password too weak. Use upper, lower, digit, symbol and 8+ chars.')
     const email = form.get('email')
     try {
-      const res = await api('/auth/register', { method: 'POST', body: JSON.stringify({ username, password, email }) })
-      alert(res.message || 'Signup successful. Check server logs for code.')
+      const body = { username: username || email, password, email, channel: 'email' }
+      const res = await api('/auth/register', { method: 'POST', body: JSON.stringify(body) })
+      const ident = email
+      try { localStorage.setItem('pending_identifier', ident); localStorage.setItem('pending_channel', 'email') } catch {}
+      alert(res.message || 'Signup successful. Check your email for the code.')
       nav('/verify')
     } catch (err) {
       alert(err?.data?.error || 'Signup failed')
@@ -100,7 +111,7 @@ function LoginPage() {
               <div className="field">
                 <input name="password" type="password" placeholder="Password" required />
               </div>
-              <div className="actions"><a className="link" href="#" onClick={(e)=>e.preventDefault()}>Forgot password?</a></div>
+              <div className="actions"><a className="link" href="#" onClick={(e)=>{e.preventDefault(); nav('/forgot')}}>Forgot password?</a></div>
               <button className="btn" type="submit">Login</button>
             </form>
             <form className="signup" onSubmit={onSignup}>
@@ -108,10 +119,14 @@ function LoginPage() {
                 <input name="email" type="email" placeholder="Email address" required />
               </div>
               <div className="field">
-                <input name="password" type="password" placeholder="Password" required />
+                <input name="password" type="password" placeholder="Password" value={signupPassword} onChange={(e)=>setSignupPassword(e.target.value)} required />
+                <PasswordStrength password={signupPassword} />
               </div>
               <div className="field">
-                <input name="username" type="text" placeholder="Username (optional if same as email)" required />
+                <input name="username" type="text" placeholder="Username (optional; defaults to email)" />
+              </div>
+              <div className="field">
+                <input name="confirm_password" type="password" placeholder="Confirm password" value={signupConfirm} onChange={(e)=>setSignupConfirm(e.target.value)} required />
               </div>
               <button className="btn" type="submit">Signup</button>
             </form>
@@ -123,26 +138,53 @@ function LoginPage() {
 }
 
 function VerifyPage() {
-  async function onVerify(e) {
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const nav = useNavigate()
+  useEffect(() => {
+    try {
+      const ident = localStorage.getItem('pending_identifier') || ''
+      if (ident) setEmail(ident)
+    } catch {}
+  }, [])
+
+  async function onResend() {
+    try {
+      const res = await api('/auth/resend-code', { method: 'POST', body: JSON.stringify({ email }) })
+      alert(res.message || 'Verification code sent')
+    } catch (err) {
+      alert(err?.data?.error || 'Resend failed')
+    }
+  }
+  async function onConfirm(e) {
     e.preventDefault()
-    const form = new FormData(e.currentTarget)
-    const email = form.get('email')
-    const code = form.get('code')
     try {
       const res = await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) })
-      alert('Verified! You can now log in.')
+      alert(res.message || 'Verified! You can now log in.')
+      nav('/')
     } catch (err) {
       alert(err?.data?.error || 'Verification failed')
     }
   }
+
   return (
-    <div style={{ maxWidth: 420, margin: '2rem auto', textAlign: 'left' }}>
-      <h2>Verify Email</h2>
-      <form onSubmit={onVerify} style={{ display: 'grid', gap: 8 }}>
-        <input name="email" type="email" placeholder="Email" required />
-        <input name="code" placeholder="Verification code" required />
-        <button type="submit">Verify</button>
-      </form>
+    <div className="page">
+      <div className="wrapper" style={{ maxWidth: 600 }}>
+        <h2 style={{ textAlign: 'center', marginTop: 0 }}>Verify Email</h2>
+        <form onSubmit={onConfirm}>
+          <div className="field">
+            <input type="email" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label style={{ display: 'block', marginBottom: 6 }}>Enter verification code</label>
+            <OtpInput value={code} onChange={setCode} />
+          </div>
+          <div className="actions-row">
+            <button type="button" onClick={onResend}>Resend Code</button>
+            <button type="submit">Confirm</button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
@@ -188,16 +230,71 @@ function TeacherPage() {
 
 function StudentPage() {
   const [items, setItems] = useState([])
+  const [profile, setProfile] = useState(null)
+  const [courses] = useState([
+    { title: 'Toán cơ bản', code: 'MATH101', progress: 0.6 },
+    { title: 'Văn học Việt Nam', code: 'LIT201', progress: 0.35 },
+    { title: 'Vật lý đại cương', code: 'PHYS110', progress: 0.8 },
+  ])
+  const [stats] = useState({ gpa: 3.6, credits: 12, pending: 2 })
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
     fetch('/me/activity?limit=50', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setItems).catch(() => {})
+    fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(setProfile).catch(() => {})
   }, [])
   return (
     <div style={{ maxWidth: 720, margin: '2rem auto' }}>
       <TopBar />
       <h2>Student Dashboard</h2>
+
+      {/* Profile card */}
+      <div style={{ display: 'flex', gap: 12, padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Hồ sơ</div>
+          <div>Tên: {profile?.full_name || '—'}</div>
+          <div>Email: {profile?.email || '—'}</div>
+          <div>Username: {profile?.username || '—'}</div>
+        </div>
+      </div>
+
+      {/* My Courses */}
+      <div style={{ padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Khoá học của tôi</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+          {courses.map(c => (
+            <div key={c.code} style={{ border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontWeight: 600 }}>{c.title} <span style={{ color: '#666', fontWeight: 400 }}>({c.code})</span></div>
+              <div style={{ height: 8, background: '#eef2ff', borderRadius: 999, marginTop: 8, overflow: 'hidden' }}>
+                <div style={{ width: `${Math.round(c.progress * 100)}%`, height: '100%', background: '#0c61cf' }} />
+              </div>
+              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Tiến độ: {Math.round(c.progress * 100)}%</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Grade stats */}
+      <div style={{ padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>Thống kê điểm số</div>
+        <div style={{ display: 'flex', gap: 16 }}>
+          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ fontSize: 12, color: '#666' }}>GPA</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.gpa}</div>
+          </div>
+          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ fontSize: 12, color: '#666' }}>Tín chỉ đã hoàn thành</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.credits}</div>
+          </div>
+          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ fontSize: 12, color: '#666' }}>Khoá học đang chờ</div>
+            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.pending}</div>
+          </div>
+        </div>
+      </div>
+
       <h3>My Activity</h3>
       <ActivityList items={items} />
     </div>
@@ -256,12 +353,82 @@ function ConfirmLoginPage() {
   )
 }
 
+function ForgotPasswordPage() {
+  const nav = useNavigate()
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetCode, setResetCode] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const otpRef = React.useRef(null)
+  async function onReset(e) {
+    e.preventDefault()
+    const form = new FormData(e.currentTarget)
+    const identifier = resetEmail || form.get('identifier')
+    const code = resetCode
+    const new_password = newPassword
+    if (new_password !== confirmPassword) return alert('Passwords do not match')
+    const s = scorePassword(new_password)
+    if (s.score < 4) return alert('Password too weak. Use upper, lower, digit, symbol and 8+ chars.')
+    try {
+      const res = await api('/auth/forgot-password/reset', { method: 'POST', body: JSON.stringify({ identifier, code, new_password }) })
+      alert(res.message || 'Password updated. You can now log in.')
+      nav('/')
+    } catch (err) {
+      alert(err?.data?.error || 'Password reset failed')
+    }
+  }
+  async function onResendReset(e) {
+    e.preventDefault()
+    const identifier = resetEmail
+    if (!identifier) return alert('Please enter your email above first')
+    try {
+      const res = await api('/auth/forgot-password/request', { method: 'POST', body: JSON.stringify({ identifier }) })
+      alert(res.message || 'Reset code sent')
+      otpRef.current?.focusFirst?.()
+    } catch (err) {
+      alert(err?.data?.error || 'Resend failed')
+    }
+  }
+  return (
+    <div className="page">
+      <div className="wrapper" style={{ maxWidth: 600 }}>
+        <h2 style={{ textAlign: 'center' }}>Forgot Password</h2>
+        {/* Enter code and set new password */}
+        <form onSubmit={onReset} style={{ width: '100%' }}>
+          <div className="field">
+            <input name="identifier" type="text" placeholder="Email" value={resetEmail} onChange={(e)=>setResetEmail(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label style={{ display: 'block', marginBottom: 6 }}>Enter verification code</label>
+            <OtpInput ref={otpRef} value={resetCode} onChange={setResetCode} />
+          </div>
+          <div className="field">
+            <input name="new_password" type="password" placeholder="New password" value={newPassword} onChange={(e)=>setNewPassword(e.target.value)} required />
+            <PasswordStrength password={newPassword} />
+          </div>
+          <div className="field">
+            <input name="confirm_new_password" type="password" placeholder="Confirm new password" value={confirmPassword} onChange={(e)=>setConfirmPassword(e.target.value)} required />
+          </div>
+          <div className="actions-row">
+            <button type="button" onClick={onResendReset}>Resend Code</button>
+            <button type="submit" disabled={scorePassword(newPassword).score < 4 || newPassword !== confirmPassword}>Reset Password</button>
+          </div>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: 12 }}>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>Back to Login</a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/verify" element={<VerifyPage />} />
+        <Route path="/forgot" element={<ForgotPasswordPage />} />
         <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />
         <Route path="/teacher" element={<Protected allow={["teacher","admin"]}><TeacherPage /></Protected>} />
         <Route path="/student" element={<Protected allow={["student","admin"]}><StudentPage /></Protected>} />

@@ -3,23 +3,26 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { body, validationResult } from "express-validator";
-import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge } from "../models/index.js";
+import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge, PasswordReset } from "../models/index.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
-import { generateCode, sendVerificationEmail, sendLoginConfirmationEmail } from "../utils/verification.js";
+import { generateCode, sendVerificationEmail, sendLoginConfirmationEmail, sendVerificationSMS } from "../utils/verification.js";
 
 const router = express.Router();
 
 // Limit login and register endpoints specifically
 const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 });
 const registerLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
+const forgotLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
 
 router.post(
   "/register",
   registerLimiter,
   [
-    body("username").isString().isLength({ min: 3 }),
+    body("username").optional().isString().isLength({ min: 3 }),
     body("password").isString().isLength({ min: 8 }),
-    body("email").isEmail(),
+    body("email").optional().isEmail(),
+    body("phone").optional().isString(),
+    body("channel").optional().isIn(["email", "sms"]),
     body("full_name").optional().isString(),
     body("role").optional().isIn(["admin", "teacher", "student"]),
   ],
@@ -30,27 +33,62 @@ router.post(
     try {
       // Zero-trust rule: public registration only allows 'student'
       const role = "student";
-      const { username, password, email, full_name } = req.body;
+      let { username, password, email, full_name, phone } = req.body;
+      let channel = req.body.channel || (email ? "email" : "sms");
+      // Enforce email-only sending if no SMS provider is desired
+      if (channel === "sms") {
+        return res.status(400).json({ error: "SMS channel disabled. Use email." });
+      }
+      channel = "email";
+
+      // Require identifier based on channel
+      if (channel === "sms" && !phone) return res.status(400).json({ error: "Missing phone for SMS" });
+      if (channel === "email" && !email) return res.status(400).json({ error: "Missing email for Email channel" });
+
+      // Default username if omitted
+      if (!username || !username.trim()) {
+        username = email || phone;
+      }
 
       // Prevent duplicates if already a verified user exists
-      const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+      const uniqOr = [];
+      if (username) uniqOr.push({ username });
+      if (email) uniqOr.push({ email });
+      if (phone) uniqOr.push({ phone });
+      const existingUser = uniqOr.length ? await User.findOne({ $or: uniqOr }) : null;
       if (existingUser) return res.status(409).json({ error: "Username or email already exists" });
 
       const hashed = await hashPassword(password);
 
       // Create a signup verification record (user will be created after verification)
       const code = generateCode();
-      await SignupVerification.create({
+      const rec = await SignupVerification.create({
         email,
         username,
         password_hashed: hashed,
         full_name,
         role,
         code,
+        phone,
+        channel,
         expires_at: new Date(Date.now() + 15 * 60 * 1000),
       });
 
-      await sendVerificationEmail({ to: email, code });
+      try {
+        const sendRes = await sendVerificationEmail({ to: email, code });
+        if (sendRes?.dev) {
+          rec.delivery_dev = true;
+        } else if (sendRes?.messageId) {
+          rec.delivery_message_id = sendRes.messageId;
+          rec.delivery_sent_at = new Date();
+          rec.delivery_dev = false;
+        }
+        await rec.save();
+      } catch (e) {
+        rec.delivery_error = String(e?.message || e);
+        await rec.save();
+        throw e;
+      }
 
       return res.status(201).json({
         message: "Signup successful. Please verify your email.",
@@ -60,6 +98,63 @@ router.post(
     }
   }
 );
+
+// Dev helper: fetch latest signup verification code from MongoDB
+// Only enabled when not in production; useful when SMTP/SMS is not configured
+router.get("/dev/latest-code", async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ error: "Not allowed in production" });
+    }
+    const identifier = (req.query.identifier || "").trim();
+    if (!identifier) return res.status(400).json({ error: "Missing identifier" });
+    const channel = identifier.includes("@") ? "email" : "sms";
+    const filter = channel === "email" ? { email: identifier } : { phone: identifier };
+    const rec = await SignupVerification.findOne({ ...filter })
+      .sort({ created_at: -1 })
+      .lean();
+    if (!rec) return res.status(404).json({ error: "No code found" });
+    return res.status(200).json({
+      code: rec.code,
+      channel,
+      created_at: rec.created_at,
+      delivery_message_id: rec.delivery_message_id,
+      delivery_sent_at: rec.delivery_sent_at,
+      delivery_dev: rec.delivery_dev,
+      delivery_error: rec.delivery_error,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Fetch code failed" });
+  }
+});
+
+// Dev helper: fetch latest password reset metadata
+router.get("/dev/latest-reset", async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === "production") {
+      return res.status(403).json({ error: "Not allowed in production" });
+    }
+    const identifier = (req.query.identifier || "").trim();
+    if (!identifier) return res.status(400).json({ error: "Missing identifier" });
+    const user = await User.findOne({ email: identifier }).lean();
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const rec = await PasswordReset.findOne({ user_id: user._id, target: identifier })
+      .sort({ created_at: -1 })
+      .lean();
+    if (!rec) return res.status(404).json({ error: "No reset record found" });
+    return res.status(200).json({
+      code: rec.code,
+      channel: rec.channel,
+      created_at: rec.created_at,
+      delivery_message_id: rec.delivery_message_id,
+      delivery_sent_at: rec.delivery_sent_at,
+      delivery_dev: rec.delivery_dev,
+      delivery_error: rec.delivery_error,
+    });
+  } catch (err) {
+    return res.status(500).json({ error: "Fetch reset failed" });
+  }
+});
 
 router.post(
   "/login",
@@ -238,6 +333,55 @@ router.post(
   }
 );
 
+// Verify signup via email or SMS (generic)
+router.post(
+  "/verify-signup",
+  [
+    body("identifier").isString(), // email or phone
+    body("code").isString().isLength({ min: 6, max: 6 }),
+    body("channel").optional().isIn(["email", "sms"]),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { identifier } = req.body;
+    const code = req.body.code;
+    const channel = req.body.channel || (identifier.includes("@") ? "email" : "sms");
+
+    try {
+      // If user already exists and is active, do not verify again
+      const existingUser = await User.findOne(channel === "email" ? { email: identifier } : { phone: identifier });
+      if (existingUser && existingUser.status === "active") {
+        return res.status(400).json({ error: "Already verified" });
+      }
+
+      // Find latest un-used signup verification record matching identifier and code
+      const filter = channel === "email" ? { email: identifier } : { phone: identifier };
+      let record = await SignupVerification.findOne({ ...filter, code, used_at: { $exists: false } })
+        .sort({ created_at: -1 });
+
+      if (!record) return res.status(400).json({ error: "Invalid or used code" });
+      if (record.expires_at && record.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
+
+      // Create the actual user and mark verified
+      await User.create({
+        username: record.username,
+        password: record.password_hashed,
+        email: record.email,
+        phone: record.phone,
+        full_name: record.full_name,
+        role: record.role || "student",
+        status: "active",
+      });
+      record.used_at = new Date();
+      await record.save();
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: "Verification failed" });
+    }
+  }
+);
+
 // Resend code
 router.post(
   "/resend-code",
@@ -255,7 +399,7 @@ router.post(
       const latest = await SignupVerification.findOne({ email }).sort({ created_at: -1 });
       if (!latest || !latest.password_hashed) return res.status(404).json({ error: "Signup not found" });
       const code = generateCode();
-      await SignupVerification.create({
+      const rec = await SignupVerification.create({
         email,
         username: latest.username,
         password_hashed: latest.password_hashed,
@@ -264,7 +408,21 @@ router.post(
         code,
         expires_at: new Date(Date.now() + 15 * 60 * 1000),
       });
-      await sendVerificationEmail({ to: email, code });
+      try {
+        const sendRes = await sendVerificationEmail({ to: email, code });
+        if (sendRes?.dev) {
+          rec.delivery_dev = true;
+        } else if (sendRes?.messageId) {
+          rec.delivery_message_id = sendRes.messageId;
+          rec.delivery_sent_at = new Date();
+          rec.delivery_dev = false;
+        }
+        await rec.save();
+      } catch (e) {
+        rec.delivery_error = String(e?.message || e);
+        await rec.save();
+        throw e;
+      }
       return res.status(200).json({ message: "Verification code sent" });
     } catch (err) {
       return res.status(500).json({ error: "Resend failed" });
@@ -283,5 +441,91 @@ router.post("/logout", async (req, res) => {
     return res.status(500).json({ error: "Logout failed" });
   }
 });
+
+// Forgot password: request OTP via email or SMS
+router.post(
+  "/forgot-password/request",
+  forgotLimiter,
+  [
+    body("identifier").isString(),
+    body("channel").optional().isIn(["email", "sms"]),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { identifier } = req.body;
+    // Force email-only channel for password reset requests
+    const channel = "email";
+
+    try {
+      const user = await User.findOne({ email: identifier });
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.status !== "active") return res.status(403).json({ error: "User not active" });
+
+      const code = generateCode();
+      const rec = await PasswordReset.create({
+        user_id: user._id,
+        code,
+        channel,
+        target: identifier,
+        expires_at: new Date(Date.now() + 10 * 60 * 1000),
+      });
+      try {
+        const sendRes = await sendVerificationEmail({ to: user.email, code });
+        if (sendRes?.dev) {
+          rec.delivery_dev = true;
+        } else if (sendRes?.messageId) {
+          rec.delivery_message_id = sendRes.messageId;
+          rec.delivery_sent_at = new Date();
+          rec.delivery_dev = false;
+        }
+        await rec.save();
+      } catch (e) {
+        rec.delivery_error = String(e?.message || e);
+        await rec.save();
+        throw e;
+      }
+      return res.status(200).json({ message: "Reset code sent" });
+    } catch (err) {
+      return res.status(500).json({ error: "Request failed" });
+    }
+  }
+);
+
+// Forgot password: verify code and reset
+router.post(
+  "/forgot-password/reset",
+  forgotLimiter,
+  [
+    body("identifier").isString(),
+    body("code").isString().isLength({ min: 6, max: 6 }),
+    body("new_password").isString().isLength({ min: 8 }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { identifier, code, new_password } = req.body;
+    const channel = identifier.includes("@") ? "email" : "sms";
+
+    try {
+      const user = await User.findOne(channel === "email" ? { email: identifier } : { phone: identifier });
+      if (!user) return res.status(404).json({ error: "User not found" });
+
+      const record = await PasswordReset.findOne({ user_id: user._id, target: identifier, code, used_at: { $exists: false } })
+        .sort({ created_at: -1 });
+      if (!record) return res.status(400).json({ error: "Invalid or used code" });
+      if (record.expires_at && record.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
+
+      const hashed = await hashPassword(new_password);
+      user.password = hashed;
+      await user.save();
+      record.used_at = new Date();
+      await record.save();
+      return res.status(200).json({ ok: true });
+    } catch (err) {
+      return res.status(500).json({ error: "Reset failed" });
+    }
+  }
+);
 
 export default router;
