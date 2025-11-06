@@ -71,7 +71,7 @@ router.post(
         code,
         phone,
         channel,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000),
+        expires_at: new Date(Date.now() + 15 * 60 * 1000), // OTP đăng ký hết hạn sau 15 phút
       });
 
       try {
@@ -219,7 +219,7 @@ router.post(
         ip_address: ip,
         device_info: device,
         created_at: new Date(),
-        expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        expires_at: new Date(Date.now() + 10 * 60 * 1000), // Token xác nhận đăng nhập hết hạn sau 10 phút
       });
       await sendLoginConfirmationEmail({ to: user.email, token: challengeToken });
       return res.status(202).json({ message: "Check your email to confirm this login.", challenge_id: challenge._id.toString() });
@@ -237,6 +237,7 @@ router.get("/confirm-login", async (req, res) => {
     const challenge = await LoginChallenge.findOne({ token });
     if (!challenge) return res.status(404).send("Invalid token");
     if (challenge.approved_at) return res.status(200).send("Already confirmed");
+    // Kiểm tra token xác nhận đăng nhập đã hết hạn
     if (challenge.expires_at && challenge.expires_at < new Date()) return res.status(400).send("Token expired");
 
     const user = await User.findById(challenge.user_id);
@@ -300,6 +301,7 @@ router.post(
         .sort({ created_at: -1 });
 
       if (record) {
+        // Kiểm tra OTP đăng ký đã hết hạn
         if (record.expires_at && record.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
         // Create the actual user and mark verified
         await User.create({
@@ -321,6 +323,7 @@ router.post(
       const legacyRec = await EmailVerification.findOne({ user_id: legacyUser._id, code, used_at: { $exists: false } })
         .sort({ created_at: -1 });
       if (!legacyRec) return res.status(400).json({ error: "Invalid or used code" });
+      // Kiểm tra mã xác thực legacy hết hạn
       if (legacyRec.expires_at && legacyRec.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
       legacyRec.used_at = new Date();
       await legacyRec.save();
@@ -361,6 +364,7 @@ router.post(
         .sort({ created_at: -1 });
 
       if (!record) return res.status(400).json({ error: "Invalid or used code" });
+      // Kiểm tra OTP đăng ký đã hết hạn
       if (record.expires_at && record.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
 
       // Create the actual user and mark verified
@@ -406,7 +410,7 @@ router.post(
         full_name: latest.full_name,
         role: latest.role || "student",
         code,
-        expires_at: new Date(Date.now() + 15 * 60 * 1000),
+        expires_at: new Date(Date.now() + 15 * 60 * 1000), // OTP gửi lại hết hạn sau 15 phút
       });
       try {
         const sendRes = await sendVerificationEmail({ to: email, code });
@@ -468,7 +472,7 @@ router.post(
         code,
         channel,
         target: identifier,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        expires_at: new Date(Date.now() + 10 * 60 * 1000), // OTP đặt lại mật khẩu hết hạn sau 10 phút
       });
       try {
         const sendRes = await sendVerificationEmail({ to: user.email, code });
@@ -514,6 +518,7 @@ router.post(
       const record = await PasswordReset.findOne({ user_id: user._id, target: identifier, code, used_at: { $exists: false } })
         .sort({ created_at: -1 });
       if (!record) return res.status(400).json({ error: "Invalid or used code" });
+      // Kiểm tra OTP đặt lại mật khẩu đã hết hạn
       if (record.expires_at && record.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
 
       const hashed = await hashPassword(new_password);

@@ -3,6 +3,10 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from '
 import './App.css'
 import OtpInput from './components/OtpInput'
 import PasswordStrength, { scorePassword } from './components/PasswordStrength'
+import Home from './pages/Home'
+import About from './pages/About'
+import Courses from './pages/Courses'
+import { I18nProvider, useI18n } from './i18n.jsx'
 
 function saveAuth(token, role) {
   localStorage.setItem('token', token)
@@ -39,13 +43,14 @@ function decodeRoleFromToken(token) {
 
 function Protected({ allow, children }) {
   const { token, role } = getAuth()
-  if (!token) return <Navigate to="/" replace />
+  if (!token) return <Navigate to="/auth" replace />
   if (allow && !allow.includes(role)) return <Navigate to={`/${role || 'dashboard'}`} replace />
   return children
 }
 
 function LoginPage() {
   const nav = useNavigate()
+  const { t, lang, setLang } = useI18n()
   const [tab, setTab] = useState('login')
   const [signupPassword, setSignupPassword] = useState('')
   const [signupConfirm, setSignupConfirm] = useState('')
@@ -90,45 +95,61 @@ function LoginPage() {
     }
   }
   return (
-    <div className="page">
+    <div className="page auth">
       <div className="wrapper">
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
+          <div style={{ fontWeight: 800, color: '#0a4ea8' }}>{t('brand')}</div>
+          <div style={{ display:'flex', alignItems:'center', gap: 10 }}>
+            <a className="back-link" href="#" onClick={(e)=>{e.preventDefault(); nav('/home')}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 18l-6-6 6-6" stroke="#0a4ea8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{t('backHome')}</span>
+            </a>
+            <label style={{ color:'#666' }}>{t('lang_label')}:</label>
+            <select value={lang} onChange={(e)=>setLang(e.target.value)}>
+              <option value="vi">VI</option>
+              <option value="en">EN</option>
+            </select>
+          </div>
+        </div>
         <div className="title-track">
           <div className="title-inner" style={{ transform: tab === 'signup' ? 'translateX(-50%)' : 'translateX(0%)' }}>
-            <h2 className="login">Login Form</h2>
-            <h2>Signup Form</h2>
+            <h2 className="login">{t('login')}</h2>
+            <h2>{t('signup')}</h2>
           </div>
         </div>
         <div className={"slide-controls " + (tab === 'signup' ? 'active' : '')}>
-          <label className="login" onClick={() => setTab('login')}>Login</label>
-          <label className="signup" onClick={() => setTab('signup')}>Signup</label>
+          <label className="login" onClick={() => setTab('login')}>{t('login')}</label>
+          <label className="signup" onClick={() => setTab('signup')}>{t('signup')}</label>
         </div>
         <div className="form-container">
           <div className="form-inner" style={{ transform: tab === 'signup' ? 'translateX(-50%)' : 'translateX(0%)' }}>
             <form className="login" onSubmit={onLogin}>
               <div className="field">
-                <input name="username" type="text" placeholder="Email or username" required />
+                <input name="username" type="text" placeholder={t('emailOrUsername')} required />
               </div>
               <div className="field">
-                <input name="password" type="password" placeholder="Password" required />
+                <input name="password" type="password" placeholder={t('password')} required />
               </div>
-              <div className="actions"><a className="link" href="#" onClick={(e)=>{e.preventDefault(); nav('/forgot')}}>Forgot password?</a></div>
-              <button className="btn" type="submit">Login</button>
+              <div className="actions"><a className="link" href="#" onClick={(e)=>{e.preventDefault(); nav('/forgot')}}>{t('forgotPasswordQ')}</a></div>
+              <button className="btn" type="submit">{t('login')}</button>
             </form>
             <form className="signup" onSubmit={onSignup}>
               <div className="field">
-                <input name="email" type="email" placeholder="Email address" required />
+                <input name="email" type="email" placeholder={t('emailAddress')} required />
               </div>
               <div className="field">
-                <input name="password" type="password" placeholder="Password" value={signupPassword} onChange={(e)=>setSignupPassword(e.target.value)} required />
+                <input name="password" type="password" placeholder={t('password')} value={signupPassword} onChange={(e)=>setSignupPassword(e.target.value)} required />
                 <PasswordStrength password={signupPassword} />
               </div>
               <div className="field">
-                <input name="username" type="text" placeholder="Username (optional; defaults to email)" />
+                <input name="username" type="text" placeholder={t('usernameOptional')} />
               </div>
               <div className="field">
-                <input name="confirm_password" type="password" placeholder="Confirm password" value={signupConfirm} onChange={(e)=>setSignupConfirm(e.target.value)} required />
+                <input name="confirm_password" type="password" placeholder={t('confirmPassword')} value={signupConfirm} onChange={(e)=>setSignupConfirm(e.target.value)} required />
               </div>
-              <button className="btn" type="submit">Signup</button>
+              <button className="btn" type="submit">{t('signup')}</button>
             </form>
           </div>
         </div>
@@ -141,6 +162,7 @@ function VerifyPage() {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const nav = useNavigate()
+  const { t } = useI18n()
   useEffect(() => {
     try {
       const ident = localStorage.getItem('pending_identifier') || ''
@@ -161,7 +183,7 @@ function VerifyPage() {
     try {
       const res = await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) })
       alert(res.message || 'Verified! You can now log in.')
-      nav('/')
+      nav('/auth')
     } catch (err) {
       alert(err?.data?.error || 'Verification failed')
     }
@@ -170,18 +192,18 @@ function VerifyPage() {
   return (
     <div className="page">
       <div className="wrapper" style={{ maxWidth: 600 }}>
-        <h2 style={{ textAlign: 'center', marginTop: 0 }}>Verify Email</h2>
+        <h2 style={{ textAlign: 'center', marginTop: 0 }}>{t('verifyEmailTitle')}</h2>
         <form onSubmit={onConfirm}>
           <div className="field">
-            <input type="email" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+            <input type="email" placeholder={t('emailAddress')} value={email} onChange={(e)=>setEmail(e.target.value)} required />
           </div>
           <div className="field">
             <label style={{ display: 'block', marginBottom: 6 }}>Enter verification code</label>
             <OtpInput value={code} onChange={setCode} />
           </div>
           <div className="actions-row">
-            <button type="button" onClick={onResend}>Resend Code</button>
-            <button type="submit">Confirm</button>
+            <button type="button" onClick={onResend}>{t('resendCode')}</button>
+            <button type="submit">{t('confirm')}</button>
           </div>
         </form>
       </div>
@@ -192,10 +214,14 @@ function VerifyPage() {
 function TopBar() {
   const { role } = getAuth()
   const nav = useNavigate()
+  const { t } = useI18n()
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: '1px solid #ddd' }}>
       <div>Role: {role || 'unknown'}</div>
-      <button onClick={() => { logout(); nav('/') }}>Logout</button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={() => nav('/home')}>{t('backHome')}</button>
+        <button onClick={() => { logout(); nav('/') }}>Logout</button>
+      </div>
     </div>
   )
 }
@@ -415,7 +441,7 @@ function ForgotPasswordPage() {
           </div>
         </form>
         <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>Back to Login</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/auth')}}>Back to Login</a>
         </div>
       </div>
     </div>
@@ -424,17 +450,23 @@ function ForgotPasswordPage() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LoginPage />} />
-        <Route path="/verify" element={<VerifyPage />} />
-        <Route path="/forgot" element={<ForgotPasswordPage />} />
-        <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />
-        <Route path="/teacher" element={<Protected allow={["teacher","admin"]}><TeacherPage /></Protected>} />
-        <Route path="/student" element={<Protected allow={["student","admin"]}><StudentPage /></Protected>} />
-        <Route path="/admin" element={<Protected allow={["admin"]}><AdminPage /></Protected>} />
-        <Route path="*" element={<Navigate to="/" />} />
-      </Routes>
-    </BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/home" element={<Home />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/courses" element={<Courses />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/auth" element={<LoginPage />} />
+          <Route path="/verify" element={<VerifyPage />} />
+          <Route path="/forgot" element={<ForgotPasswordPage />} />
+          <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />
+          <Route path="/teacher" element={<Protected allow={["teacher","admin"]}><TeacherPage /></Protected>} />
+          <Route path="/student" element={<Protected allow={["student","admin"]}><StudentPage /></Protected>} />
+          <Route path="/admin" element={<Protected allow={["admin"]}><AdminPage /></Protected>} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </BrowserRouter>
+    </I18nProvider>
   )
 }
