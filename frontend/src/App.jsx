@@ -43,7 +43,7 @@ function decodeRoleFromToken(token) {
 
 function Protected({ allow, children }) {
   const { token, role } = getAuth()
-  if (!token) return <Navigate to="/" replace />
+  if (!token) return <Navigate to="/auth" replace />
   if (allow && !allow.includes(role)) return <Navigate to={`/${role || 'dashboard'}`} replace />
   return children
 }
@@ -183,7 +183,7 @@ function VerifyPage() {
     try {
       const res = await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) })
       alert(res.message || 'Verified! You can now log in.')
-      nav('/')
+      nav('/auth')
     } catch (err) {
       alert(err?.data?.error || 'Verification failed')
     }
@@ -441,7 +441,7 @@ function ForgotPasswordPage() {
           </div>
         </form>
         <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>Back to Login</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/auth')}}>Back to Login</a>
         </div>
       </div>
     </div>
@@ -456,7 +456,8 @@ export default function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/courses" element={<Courses />} />
-          <Route path="/" element={<LoginPage />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/auth" element={<LoginPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/forgot" element={<ForgotPasswordPage />} />
           <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />

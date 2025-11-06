@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+// Ghi chú: Các schema dưới đây có trường expires_at/used_at để kiểm soát thời hạn mã OTP/token.
+// Thời hạn mặc định theo luồng hiện tại:
+// - SignupVerification: 15 phút (đăng ký và gửi lại mã xác thực email)
+// - PasswordReset: 10 phút (OTP đặt lại mật khẩu)
+// - LoginChallenge: 10 phút (liên kết xác nhận đăng nhập qua email)
+// Việc set expires_at diễn ra tại các route trong backend/src/routes/auth.js,
+// và việc kiểm tra hết hạn được thực hiện trước khi chấp nhận mã/token.
+
 // USERS
 const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },

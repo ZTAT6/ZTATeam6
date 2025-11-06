@@ -55,8 +55,8 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// In production, serve the React build from client/dist
-const clientDist = path.join(__dirname, "..", "client", "dist");
+// In production, serve the React build from frontend/dist
+const clientDist = path.join(__dirname, "..", "..", "frontend", "dist");
 app.use(express.static(clientDist));
 
 // Routes

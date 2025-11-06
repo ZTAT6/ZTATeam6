@@ -18,27 +18,17 @@ export default function Courses() {
       return [...sampleCourses, ...saved]
     } catch { return sampleCourses }
   })
-  const [newTitle, setNewTitle] = React.useState('')
-  const [newLevel, setNewLevel] = React.useState('level_beginner')
+  const [searchQuery, setSearchQuery] = React.useState('')
   useEffect(() => {
     document.body.classList.remove('home')
   }, [])
 
-  function addCourse() {
-    const title = (newTitle || '').trim()
-    if (!title) return alert(t('add_course_invalid'))
-    const custom = { title, levelKey: newLevel }
-    setCourses(prev => {
-      const next = [...prev, custom]
-      try {
-        const customOnly = next.filter(c => !c.key)
-        localStorage.setItem('custom_courses', JSON.stringify(customOnly))
-      } catch {}
-      return next
-    })
-    setNewTitle('')
-    alert(t('add_course_added'))
-  }
+  const visibleCourses = courses.filter((c) => {
+    const q = (searchQuery || '').trim().toLowerCase()
+    if (!q) return true
+    const title = c.key ? t(c.key) : c.title
+    return (title || '').toLowerCase().includes(q)
+  })
 
   return (
     <div className="page" style={{ maxWidth: 1020, margin: '2rem auto' }}>
@@ -62,27 +52,14 @@ export default function Courses() {
   <h1 style={{ marginTop: 0 }}>{t('courses_title')}</h1>
   <p style={{ color:'#555' }}>{t('courses_desc')}</p>
 
-  {/* Add course form */}
-  <div className="add-course-form" style={{ display:'grid', gridTemplateColumns:'1.2fr .8fr auto', gap: 10, alignItems:'center', marginTop: 12, background:'#fff', border:'1px solid #e5e7eb', borderRadius: 12, padding: 12 }}>
-    <div>
-      <label style={{ display:'block', fontSize: 12, color:'#6b7280', marginBottom: 6 }}>{t('add_course_name_label')}</label>
-      <input type="text" value={newTitle} onChange={(e)=>setNewTitle(e.target.value)} placeholder={t('add_course_name_label')} style={{ width:'100%', height:38, border:'1px solid #e5e7eb', borderRadius: 10, padding:'0 10px' }} />
-    </div>
-    <div>
-      <label style={{ display:'block', fontSize: 12, color:'#6b7280', marginBottom: 6 }}>{t('add_course_level_label')}</label>
-      <select value={newLevel} onChange={(e)=>setNewLevel(e.target.value)} style={{ width:'100%', height:38, border:'1px solid #e5e7eb', borderRadius: 10, padding:'0 10px' }}>
-        <option value="level_beginner">{t('level_beginner')}</option>
-        <option value="level_intermediate">{t('level_intermediate')}</option>
-        <option value="level_advanced">{t('level_advanced')}</option>
-      </select>
-    </div>
-    <div style={{ alignSelf:'end' }}>
-      <button onClick={addCourse}>{t('add_course_add_btn')}</button>
-    </div>
+  {/* Search courses */}
+  <div className="course-search" style={{ display:'grid', gridTemplateColumns:'1fr', gap: 10, alignItems:'center', marginTop: 12, background:'#fff', border:'1px solid #e5e7eb', borderRadius: 12, padding: 12 }}>
+    <input type="text" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} placeholder={t('search_placeholder')} style={{ width:'100%', height:38, border:'1px solid #e5e7eb', borderRadius: 10, padding:'0 10px' }} />
   </div>
+  <div style={{ marginTop: 8, color:'#6b7280' }}>{lang==='vi'?'Kết quả: ':'Results: '}{visibleCourses.length}</div>
 
       <div className="courses-grid">
-        {courses.map((c, i) => (
+        {visibleCourses.map((c, i) => (
           <div key={i} className="course-card">
             <h3>{c.key ? t(c.key) : c.title}</h3>
             <span className="level-tag">{t(c.levelKey)}</span>

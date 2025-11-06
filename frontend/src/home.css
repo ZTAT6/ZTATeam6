@@ -111,7 +111,42 @@ body.home {
 .hm-social { margin-top: 12px; display: flex; align-items: center; gap: 8px; color: #374151; }
 .hm-social .count { background: #fff; border: 1px solid #e5e7eb; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
 
+/* Features grid */
+.hm-features { display:grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; margin-top: 14px; }
+.hm-features .feature { display:flex; gap: 10px; align-items:flex-start; background:#fff; border:1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+.hm-features .feature .icon { width: 28px; height: 28px; border-radius: 999px; background: linear-gradient(135deg, var(--brand-secondary), #ffd27a); flex: 0 0 28px; }
+.hm-features .feature .title { font-weight: 800; color: var(--brand-primary); }
+.hm-features .feature .desc { color: #374151; }
+
+/* Stats and CTA */
+.hm-stats { display:grid; grid-template-columns: repeat(3, minmax(160px,1fr)) 1.2fr; gap: 12px; margin-top: 16px; align-items: stretch; }
+.hm-stats .card { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; padding: 16px; text-align:center; }
+.hm-stats .card .num { font-size: 28px; font-weight: 900; color: var(--brand-primary); }
+.hm-stats .card .label { color:#374151; font-weight: 600; }
+.hm-stats .cta-wrap { background: linear-gradient(90deg, #0a4ea8, #0e6de6); color:#fff; border-radius: 12px; padding: 16px; display:flex; align-items:center; justify-content: space-between; }
+.hm-stats .cta-wrap .text { font-weight: 800; }
+.hm-stats .cta-wrap button { background:#fff; color:#0a4ea8; }
+
+/* Testimonials */
+.hm-testimonials { max-width: 1200px; margin: 18px auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 12px; }
+.hm-testimonials .t-item { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; padding: 14px; }
+.hm-testimonials .quote { font-style: italic; color:#374151; }
+.hm-testimonials .author { margin-top: 8px; font-weight: 700; color: var(--brand-primary); }
+
+/* Partners */
+.hm-partners { max-width: 1200px; margin: 10px auto 24px; display:grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 12px; }
+.hm-partners .p-logo { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; height: 54px; box-shadow: 0 4px 10px rgba(0,0,0,.04); }
+
+/* Footer */
+.hm-footer { background:#fff; border-top: 1px solid #e5e7eb; padding: 16px; display:flex; justify-content: space-between; align-items:center; }
+.hm-footer .links { display:flex; gap: 12px; }
+.hm-footer .links a { color:#374151; }
+.hm-footer .links a:hover { color: var(--brand-primary); }
+.hm-footer .copy { color:#6b7280; font-size: 14px; }
+
 @media (max-width: 960px) {
   .hm-container { grid-template-columns: 1fr; }
   .hm-banners { grid-template-columns: 1fr; }
+  .hm-stats { grid-template-columns: 1fr; }
+  .hm-stats .cta-wrap { flex-direction: column; gap: 10px; align-items: flex-start; }
 }
