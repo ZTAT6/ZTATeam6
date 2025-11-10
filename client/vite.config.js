@@ -8,7 +8,9 @@ export default defineConfig({
     proxy: {
       '/auth': 'http://localhost:4000',
       '/admin': 'http://localhost:4000',
-      '/me': 'http://localhost:4000'
+      '/me': 'http://localhost:4000',
+      '/health': 'http://localhost:4000',
+      '/health/db': 'http://localhost:4000'
     }
   }
 })

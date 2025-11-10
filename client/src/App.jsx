@@ -54,6 +54,25 @@ function LoginPage() {
   const [tab, setTab] = useState('login')
   const [signupPassword, setSignupPassword] = useState('')
   const [signupConfirm, setSignupConfirm] = useState('')
+  const [backendStatus, setBackendStatus] = useState('checking')
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      try {
+        const res = await fetch('/health/db')
+        const json = await res.json().catch(() => ({}))
+        if (!active) return
+        if (json?.status === 'ok' && json?.db?.pingOk) {
+          setBackendStatus('ok')
+        } else {
+          setBackendStatus('fail')
+        }
+      } catch {
+        if (active) setBackendStatus('fail')
+      }
+    })()
+    return () => { active = false }
+  }, [])
   async function onLogin(e) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -111,6 +130,9 @@ function LoginPage() {
               <option value="vi">VI</option>
               <option value="en">EN</option>
             </select>
+            <span style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 999, fontSize: 12, background: backendStatus==='ok'?'#e8f5e9':'#fdecea', color: backendStatus==='ok'?'#1b5e20':'#b71c1c', border: '1px solid '+(backendStatus==='ok'?'#c8e6c9':'#f5c6cb') }}>
+              Backend: {backendStatus==='checking'?'checking...':backendStatus==='ok'?'OK':'Fail'}
+            </span>
           </div>
         </div>
         <div className="title-track">
@@ -183,7 +205,7 @@ function VerifyPage() {
     try {
       const res = await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) })
       alert(res.message || 'Verified! You can now log in.')
-      nav('/')
+      nav('/login')
     } catch (err) {
       alert(err?.data?.error || 'Verification failed')
     }
@@ -220,7 +242,7 @@ function TopBar() {
       <div>Role: {role || 'unknown'}</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button onClick={() => nav('/home')}>{t('backHome')}</button>
-        <button onClick={() => { logout(); nav('/') }}>Logout</button>
+        <button onClick={() => { logout(); nav('/home') }}>Logout</button>
       </div>
     </div>
   )
@@ -398,7 +420,7 @@ function ForgotPasswordPage() {
     try {
       const res = await api('/auth/forgot-password/reset', { method: 'POST', body: JSON.stringify({ identifier, code, new_password }) })
       alert(res.message || 'Password updated. You can now log in.')
-      nav('/')
+      nav('/login')
     } catch (err) {
       alert(err?.data?.error || 'Password reset failed')
     }
@@ -441,7 +463,7 @@ function ForgotPasswordPage() {
           </div>
         </form>
         <div style={{ textAlign: 'center', marginTop: 12 }}>
-          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>Back to Login</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/login')}}>Back to Login</a>
         </div>
       </div>
     </div>
@@ -456,14 +478,15 @@ export default function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/courses" element={<Courses />} />
-          <Route path="/" element={<LoginPage />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/forgot" element={<ForgotPasswordPage />} />
           <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />
           <Route path="/teacher" element={<Protected allow={["teacher","admin"]}><TeacherPage /></Protected>} />
           <Route path="/student" element={<Protected allow={["student","admin"]}><StudentPage /></Protected>} />
           <Route path="/admin" element={<Protected allow={["admin"]}><AdminPage /></Protected>} />
-          <Route path="*" element={<Navigate to="/" />} />
+          <Route path="*" element={<Navigate to="/home" />} />
         </Routes>
       </BrowserRouter>
     </I18nProvider>

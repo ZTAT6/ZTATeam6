@@ -23,8 +23,8 @@ export default function Home() {
           <div className="hm-title">{t('brand')}</div>
         </div>
         <div className="hm-auth">
-          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>{t('login')}</a>
-          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/')}}>{t('signup')}</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/login')}}>{t('login')}</a>
+          <a href="#" onClick={(e)=>{e.preventDefault(); nav('/login')}}>{t('signup')}</a>
           <span style={{ marginLeft: 12, color: '#666', fontWeight: 600 }}>{t('lang_label')}:</span>
           <select value={lang} onChange={(e)=>setLang(e.target.value)} style={{ marginLeft: 8 }}>
             <option value="vi">VI</option>
@@ -54,7 +54,7 @@ export default function Home() {
           <section className="hm-hero">
             <h1>{t('hero_title_generic')}</h1>
             <p>{t('hero_desc_generic')}</p>
-            <button className="cta" onClick={()=>nav('/')}>{t('cta_explore')}</button>
+            <button className="cta" onClick={()=>nav('/login')}>{t('cta_explore')}</button>
           </section>
 
           <div className="hm-banners">

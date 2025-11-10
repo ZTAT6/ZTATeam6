@@ -8,6 +8,7 @@ import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import morgan from "morgan";
+import mongoose from "mongoose";
 
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
@@ -67,6 +68,32 @@ app.use("/me", authMiddleware, activityLogger, meRoutes);
 // Health
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// Health (DB details)
+app.get("/health/db", async (req, res) => {
+  try {
+    const state = mongoose.connection.readyState; // 0,1,2,3
+    const stateMap = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
+    let pingOk = false;
+    try {
+      const pingRes = await mongoose.connection.db.admin().ping();
+      pingOk = !!pingRes?.ok;
+    } catch (_) {}
+    return res.status(200).json({
+      status: "ok",
+      db: {
+        readyState: state,
+        readyStateText: stateMap[state] || String(state),
+        name: mongoose.connection.name,
+        host: mongoose.connection.host,
+        port: mongoose.connection.port,
+        pingOk,
+      },
+    });
+  } catch (e) {
+    return res.status(500).json({ status: "error", error: e?.message || String(e) });
+  }
 });
 
 // SPA fallback: match any route NOT starting with /auth, /admin, /me, /health
