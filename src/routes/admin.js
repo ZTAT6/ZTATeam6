@@ -1,8 +1,9 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { requireRole } from "../middlewares/auth.js";
-import { User, ActivityLog } from "../models/index.js";
+import { User, ActivityLog, Course, Enrollment } from "../models/index.js";
 import { hashPassword } from "../utils/password.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -57,6 +58,47 @@ router.get("/users/students", async (req, res) => {
   }
 });
 
+// List all teachers (admin-only)
+router.get("/users/teachers", async (req, res) => {
+  try {
+    const teachers = await User.find({ role: "teacher" })
+      .select("username email status created_at full_name")
+      .sort({ created_at: -1 })
+      .lean();
+    return res.status(200).json(teachers);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch teachers" });
+  }
+});
+
+// Update user status (admin-only)
+router.patch(
+  "/users/:id/status",
+  [
+    body("status").isString().isIn(["active", "inactive", "blocked"]),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { id } = req.params;
+    const { status } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid user id" });
+    try {
+      const user = await User.findById(id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      // Prevent demoting/altering other admins' status except self? For now allow, but block if target is admin and not self
+      if (user.role === "admin" && req.user.id !== user._id.toString()) {
+        return res.status(403).json({ error: "Cannot modify another admin" });
+      }
+      user.status = status;
+      await user.save();
+      return res.status(200).json({ id: user._id, status: user.status });
+    } catch (err) {
+      return res.status(500).json({ error: "Failed to update status" });
+    }
+  }
+);
+
 // Block any attempt to create an admin account via API (no route provided).
 // For visibility, admin can list activity logs with filters
 router.get("/activity", async (req, res) => {
@@ -69,6 +111,27 @@ router.get("/activity", async (req, res) => {
     return res.status(200).json(items);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch activity logs" });
+  }
+});
+
+// List courses (admin-only)
+router.get("/courses", async (req, res) => {
+  try {
+    const courses = await Course.find({}).select("title status created_at updated_at lecturer_id").sort({ created_at: -1 }).lean();
+    return res.status(200).json(courses);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch courses" });
+  }
+});
+
+// List recent enrollments (admin-only)
+router.get("/enrollments", async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    const items = await Enrollment.find({}).sort({ enrolled_at: -1 }).limit(Number(limit)).lean();
+    return res.status(200).json(items);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch enrollments" });
   }
 });
 

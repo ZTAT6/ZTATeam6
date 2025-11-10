@@ -186,43 +186,23 @@ router.post(
         return res.status(403).json({ error: "Email not verified" });
       }
 
-      // Policy: admin and teacher do NOT require email confirmation.
-      // Students require confirmation on repeat logins.
-      const isStudent = user.role === "student";
-      const isRepeat = Boolean(user.last_login);
+      // Always allow immediate login (disable email confirmation)
+      user.last_login = new Date();
+      await user.save();
 
-      if (!isRepeat || !isStudent) {
-        // Allow immediately (first login for anyone, or any admin/teacher login)
-        user.last_login = new Date();
-        await user.save();
+      const payload = { sub: user._id.toString(), role: user.role };
+      const token = jwt.sign(payload, process.env.JWT_SECRET || "dev_secret", { expiresIn: "7d" });
 
-        const payload = { sub: user._id.toString(), role: user.role };
-        const token = jwt.sign(payload, process.env.JWT_SECRET || "dev_secret", { expiresIn: "7d" });
-
-        await Session.create({
-          user_id: user._id,
-          token,
-          ip_address: ip,
-          device_info: device,
-          created_at: new Date(),
-          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-        });
-
-        return res.status(200).json({ token, role: user.role });
-      }
-
-      // Repeat student login -> require email confirmation link
-      const challengeToken = crypto.randomBytes(32).toString("hex");
-      const challenge = await LoginChallenge.create({
+      await Session.create({
         user_id: user._id,
-        token: challengeToken,
+        token,
         ip_address: ip,
         device_info: device,
         created_at: new Date(),
-        expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
-      await sendLoginConfirmationEmail({ to: user.email, token: challengeToken });
-      return res.status(202).json({ message: "Check your email to confirm this login.", challenge_id: challenge._id.toString() });
+
+      return res.status(200).json({ token, role: user.role });
     } catch (err) {
       return res.status(500).json({ error: "Login failed" });
     }

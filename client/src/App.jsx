@@ -83,8 +83,6 @@ function LoginPage() {
       if (res.token && res.role) {
         saveAuth(res.token, res.role)
         nav(`/${res.role}`)
-      } else if (res.challenge_id) {
-        nav(`/confirm-login/${res.challenge_id}`)
       } else if (res.message) {
         alert(res.message)
       }
@@ -249,10 +247,15 @@ function TopBar() {
 }
 
 function ActivityList({ items }) {
+  const list = Array.isArray(items) ? items : []
   return (
-    <ul>
-      {items.map((it) => (
-        <li key={`${it._id}`}>{it.timestamp} — {it.action} {it.target ? `on ${it.target}` : ''}</li>
+    <ul className="activity-list">
+      {list.map((it) => (
+        <li className="activity-item" key={`${it._id || it.timestamp || Math.random()}`}>
+          <span className="time">{it.timestamp}</span>
+          <span className="action">{it.action}</span>
+          {it.target ? <span className="target">{` ${it.target}`}</span> : null}
+        </li>
       ))}
     </ul>
   )
@@ -277,7 +280,6 @@ function TeacherPage() {
 }
 
 function StudentPage() {
-  const [items, setItems] = useState([])
   const [profile, setProfile] = useState(null)
   const [courses] = useState([
     { title: 'Toán cơ bản', code: 'MATH101', progress: 0.6 },
@@ -288,81 +290,309 @@ function StudentPage() {
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
-    fetch('/me/activity?limit=50', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setItems).catch(() => {})
     fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setProfile).catch(() => {})
   }, [])
   return (
-    <div style={{ maxWidth: 720, margin: '2rem auto' }}>
+    <div className="student-page">
       <TopBar />
-      <h2>Student Dashboard</h2>
 
-      {/* Profile card */}
-      <div style={{ display: 'flex', gap: 12, padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, marginBottom: 6 }}>Hồ sơ</div>
-          <div>Tên: {profile?.full_name || '—'}</div>
-          <div>Email: {profile?.email || '—'}</div>
-          <div>Username: {profile?.username || '—'}</div>
+      <section className="student-hero">
+        <div className="avatar" />
+        <div className="hero-info">
+          <h1>Xin chào, {profile?.full_name || profile?.username || 'Học viên'}</h1>
+          <div className="hero-meta">
+            <span className="role-badge">Student</span>
+            <span className="email">{profile?.email || '—'}</span>
+          </div>
         </div>
-      </div>
+        <div className="hero-stats">
+          <div className="stat-card">
+            <div className="label">GPA</div>
+            <div className="value">{stats.gpa}</div>
+          </div>
+          <div className="stat-card">
+            <div className="label">Tín chỉ</div>
+            <div className="value">{stats.credits}</div>
+          </div>
+          <div className="stat-card">
+            <div className="label">Đang chờ</div>
+            <div className="value">{stats.pending}</div>
+          </div>
+        </div>
+      </section>
 
-      {/* My Courses */}
-      <div style={{ padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Khoá học của tôi</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+      <section className="profile-card">
+        <div className="profile-grid">
+          <div>
+            <div className="label">Họ và tên</div>
+            <div className="value">{profile?.full_name || '—'}</div>
+          </div>
+          <div>
+            <div className="label">Email</div>
+            <div className="value">{profile?.email || '—'}</div>
+          </div>
+          <div>
+            <div className="label">Username</div>
+            <div className="value">{profile?.username || '—'}</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="student-courses">
+        <div className="section-head">
+          <h2>Khoá học của tôi</h2>
+        </div>
+        <div className="courses-grid">
           {courses.map(c => (
-            <div key={c.code} style={{ border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
-              <div style={{ fontWeight: 600 }}>{c.title} <span style={{ color: '#666', fontWeight: 400 }}>({c.code})</span></div>
-              <div style={{ height: 8, background: '#eef2ff', borderRadius: 999, marginTop: 8, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.round(c.progress * 100)}%`, height: '100%', background: '#0c61cf' }} />
+            <div key={c.code} className="course-card">
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+                <h3 style={{ margin: 0 }}>{c.title}</h3>
+                <span className="code">{c.code}</span>
               </div>
-              <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Tiến độ: {Math.round(c.progress * 100)}%</div>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${Math.round(c.progress * 100)}%` }} />
+              </div>
+              <div className="progress-label">Tiến độ: {Math.round(c.progress * 100)}%</div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* Grade stats */}
-      <div style={{ padding: '12px 14px', border: '1px solid #e1e5eb', borderRadius: 12, margin: '16px 0' }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>Thống kê điểm số</div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ fontSize: 12, color: '#666' }}>GPA</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.gpa}</div>
-          </div>
-          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ fontSize: 12, color: '#666' }}>Tín chỉ đã hoàn thành</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.credits}</div>
-          </div>
-          <div style={{ flex: 1, background: '#f7faff', border: '1px solid #eef2ff', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ fontSize: 12, color: '#666' }}>Khoá học đang chờ</div>
-            <div style={{ fontSize: 24, fontWeight: 700 }}>{stats.pending}</div>
-          </div>
-        </div>
-      </div>
-
-      <h3>My Activity</h3>
-      <ActivityList items={items} />
+      {/* Removed activity section as requested */}
     </div>
   )
 }
 
 function AdminPage() {
-  const [items, setItems] = useState([])
+  const [students, setStudents] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [courses, setCourses] = useState([])
+  const [enrollments, setEnrollments] = useState([])
+  const [activity, setActivity] = useState([])
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({ username: '', email: '', full_name: '', password: '' })
+  const [errors, setErrors] = useState({})
+  const [updating, setUpdating] = useState(false)
+  const [tab, setTab] = useState('users') // users | courses | enrollments | activity
+  const [userView, setUserView] = useState('teachers') // teachers | students
+  const [query, setQuery] = useState('')
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
-    fetch('/admin/activity?limit=50', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setItems).catch(() => {})
+    const hdr = { Authorization: `Bearer ${token}` }
+    fetch('/admin/users/students', { headers: hdr }).then(r=>r.json()).then(setStudents).catch(()=>{})
+    fetch('/admin/users/teachers', { headers: hdr }).then(r=>r.json()).then(setTeachers).catch(()=>{})
+    fetch('/admin/courses', { headers: hdr }).then(r=>r.json()).then(setCourses).catch(()=>{})
+    fetch('/admin/enrollments?limit=20', { headers: hdr }).then(r=>r.json()).then(setEnrollments).catch(()=>{})
+    fetch('/admin/activity?limit=20', { headers: hdr }).then(r=>r.json()).then(setActivity).catch(()=>{})
   }, [])
+
+  function validateTeacherForm(f) {
+    const e = {}
+    if (!f.username || f.username.trim().length < 3) e.username = 'Tên đăng nhập tối thiểu 3 ký tự'
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!f.email || !emailRe.test(f.email)) e.email = 'Email không hợp lệ'
+    if (!f.full_name || f.full_name.trim().length < 2) e.full_name = 'Họ tên không được để trống'
+    if (!f.password || f.password.length < 6) e.password = 'Mật khẩu tối thiểu 6 ký tự'
+    return e
+  }
+
+  async function onCreateTeacher(e) {
+    e.preventDefault()
+    const vErrors = validateTeacherForm(form)
+    if (Object.keys(vErrors).length) {
+      setErrors(vErrors)
+      return
+    }
+    setCreating(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch('/admin/users/teacher', { method:'POST', headers: hdr, body: JSON.stringify(form) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Create failed')
+      alert('Đã tạo giáo viên: ' + json.username)
+      // refresh teachers
+      fetch('/admin/users/teachers', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r=>r.json()).then(setTeachers).catch(()=>{})
+      setForm({ username:'', email:'', full_name:'', password:'' })
+      setErrors({})
+    } catch (err) {
+      alert(err.message || 'Create teacher failed')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function onUpdateUserStatus(userId, nextStatus) {
+    if (!userId || !nextStatus) return
+    setUpdating(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch(`/admin/users/${encodeURIComponent(userId)}/status`, { method:'PATCH', headers: hdr, body: JSON.stringify({ status: nextStatus }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Update failed')
+      setTeachers(prev => Array.isArray(prev) ? prev.map(u => (u._id === userId ? { ...u, status: nextStatus } : u)) : prev)
+      setStudents(prev => Array.isArray(prev) ? prev.map(u => (u._id === userId ? { ...u, status: nextStatus } : u)) : prev)
+    } catch (err) {
+      alert(err.message || 'Update status failed')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const usersFiltered = (userView === 'teachers' ? (Array.isArray(teachers)?teachers:[]) : (Array.isArray(students)?students:[]))
+    .filter(u => {
+      const q = query.trim().toLowerCase()
+      if (!q) return true
+      return [u.username, u.email, u.full_name].filter(Boolean).some(x => String(x).toLowerCase().includes(q))
+    })
+
+  const stats = {
+    students: Array.isArray(students) ? students.length : 0,
+    teachers: Array.isArray(teachers) ? teachers.length : 0,
+    courses: Array.isArray(courses) ? courses.length : 0,
+    enrollments: Array.isArray(enrollments) ? enrollments.length : 0,
+  }
+
   return (
-    <div style={{ maxWidth: 720, margin: '2rem auto' }}>
+    <div className="admin-page">
       <TopBar />
-      <h2>Admin Dashboard</h2>
-      <h3>Recent Activity</h3>
-      <ActivityList items={items} />
+
+      <section className="admin-hero">
+        <div>
+          <h1>Admin Control Center</h1>
+          <div className="sub">Quyền cao nhất — giám sát hệ thống</div>
+        </div>
+        <div className="hero-stats">
+          <div className="stat-card"><div className="label">Students</div><div className="value">{stats.students}</div></div>
+          <div className="stat-card"><div className="label">Teachers</div><div className="value">{stats.teachers}</div></div>
+          <div className="stat-card"><div className="label">Courses</div><div className="value">{stats.courses}</div></div>
+          <div className="stat-card"><div className="label">Enrollments</div><div className="value">{stats.enrollments}</div></div>
+        </div>
+      </section>
+
+      <section className="admin-section">
+        <div className="section-head"><h2>Quản trị</h2></div>
+        <div className="tabs">
+          <div className={"tab " + (tab==='users'?'active':'')} onClick={()=>setTab('users')}>Tài khoản</div>
+          <div className={"tab " + (tab==='courses'?'active':'')} onClick={()=>setTab('courses')}>Khoá học</div>
+          <div className={"tab " + (tab==='enrollments'?'active':'')} onClick={()=>setTab('enrollments')}>Ghi danh</div>
+          <div className={"tab " + (tab==='activity'?'active':'')} onClick={()=>setTab('activity')}>Hoạt động</div>
+        </div>
+
+        {tab === 'users' && (
+          <div>
+            <div className="subtabs">
+              <div className={"subtab " + (userView==='teachers'?'active':'')} onClick={()=>setUserView('teachers')}>Giáo viên</div>
+              <div className={"subtab " + (userView==='students'?'active':'')} onClick={()=>setUserView('students')}>Học viên</div>
+            </div>
+
+            {userView==='teachers' && (
+              <div className="panel">
+                <h3 className="panel-title">Tạo giáo viên</h3>
+                <form className="inline-form" onSubmit={onCreateTeacher} aria-label="Tạo giáo viên">
+                  <div className="field">
+                    <input type="text" aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" value={form.username} aria-invalid={!!errors.username} onChange={e=>{ setForm({ ...form, username: e.target.value }); if (errors.username) setErrors({ ...errors, username: undefined }) }} />
+                    {errors.username && <div className="form-error">{errors.username}</div>}
+                  </div>
+                  <div className="field">
+                    <input type="email" aria-label="Email" placeholder="Email" value={form.email} aria-invalid={!!errors.email} onChange={e=>{ setForm({ ...form, email: e.target.value }); if (errors.email) setErrors({ ...errors, email: undefined }) }} />
+                    {errors.email && <div className="form-error">{errors.email}</div>}
+                  </div>
+                  <div className="field">
+                    <input type="text" aria-label="Họ tên" placeholder="Họ tên" value={form.full_name} aria-invalid={!!errors.full_name} onChange={e=>{ setForm({ ...form, full_name: e.target.value }); if (errors.full_name) setErrors({ ...errors, full_name: undefined }) }} />
+                    {errors.full_name && <div className="form-error">{errors.full_name}</div>}
+                  </div>
+                  <div className="field">
+                    <input type="password" aria-label="Mật khẩu" placeholder="Mật khẩu" value={form.password} aria-invalid={!!errors.password} onChange={e=>{ setForm({ ...form, password: e.target.value }); if (errors.password) setErrors({ ...errors, password: undefined }) }} />
+                    {errors.password && <div className="form-error">{errors.password}</div>}
+                  </div>
+                  <button className="btn" disabled={creating} type="submit">{creating? 'Đang tạo...' : 'Tạo giáo viên'}</button>
+                </form>
+              </div>
+            )}
+
+            <div className="panel">
+              <div className="list-head">
+                <div className="list-count">Tổng: {usersFiltered.length}</div>
+                <div className="filter-bar">
+                  <input type="text" placeholder="Tìm theo tên, email..." value={query} onChange={e=>setQuery(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="data-table">
+                <div className="row head">
+                  <div>Username</div><div>Email</div><div>Trạng thái</div><div>Ngày tạo</div><div>Hành động</div>
+                </div>
+                {usersFiltered.length === 0 ? (
+                  <div className="empty-state">Không có người dùng phù hợp</div>
+                ) : (
+                  usersFiltered.map((u,i)=> (
+                    <div key={u._id||i} className="row">
+                      <div>{u.username}</div>
+                      <div>{u.email||'—'}</div>
+                      <div><span className={`status-badge ${u.status}`}>{u.status}</span></div>
+                      <div>{new Date(u.created_at).toLocaleString()}</div>
+                      <div>
+                        <select defaultValue={u.status} onChange={(e)=>onUpdateUserStatus(u._id, e.target.value)} disabled={updating}>
+                          <option value="active">active</option>
+                          <option value="inactive">inactive</option>
+                          <option value="blocked">blocked</option>
+                        </select>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab === 'courses' && (
+          <div className="data-table">
+            <div className="row head">
+              <div>Tên</div><div>Giảng viên</div><div>Trạng thái</div><div>Ngày tạo</div><div>—</div>
+            </div>
+            {(Array.isArray(courses)?courses:[]).map((c,i)=> (
+              <div key={i} className="row">
+                <div>{c.title}</div>
+                <div>{c.lecturer_id||'—'}</div>
+                <div><span className={`status-badge ${c.status}`}>{c.status}</span></div>
+                <div>{new Date(c.created_at).toLocaleString()}</div>
+                <div>—</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === 'enrollments' && (
+          <div className="data-table">
+            <div className="row head">
+              <div>Student</div><div>Course</div><div>Trạng thái</div><div>Thời gian</div><div>—</div>
+            </div>
+            {(Array.isArray(enrollments)?enrollments:[]).map((e,i)=> (
+              <div key={i} className="row">
+                <div>{e.student_id}</div>
+                <div>{e.course_id}</div>
+                <div><span className={`status-badge ${e.status}`}>{e.status}</span></div>
+                <div>{new Date(e.enrolled_at||e.created_at).toLocaleString()}</div>
+                <div>—</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {tab === 'activity' && (
+          <div className="activity-section">
+            <ActivityList items={activity} />
+          </div>
+        )}
+      </section>
+
+      {/* Các section cũ đã gom vào tabs trên để giao diện gọn hơn */}
     </div>
   )
 }

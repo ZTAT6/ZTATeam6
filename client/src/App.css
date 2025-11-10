@@ -139,3 +139,90 @@ input[type="text"], input[type="email"], input[type="password"] {
 
 /* Brand-colored headings */
 .title-inner h2 { color: #0a4ea8; }
+
+/* --- Student page redesign --- */
+.student-page { max-width: 980px; margin: 2rem auto; padding: 0 12px; }
+.student-hero {
+  display: grid; grid-template-columns: 80px 1fr; gap: 16px;
+  background: linear-gradient(90deg, #0a4ea8, #0e6de6);
+  color: #fff; border-radius: 18px; padding: 18px;
+  box-shadow: 0 10px 20px rgba(10,78,168,0.12);
+}
+.student-hero .avatar { width: 80px; height: 80px; border-radius: 999px; background: rgba(255,255,255,.25); border: 2px solid rgba(255,255,255,.4); }
+.student-hero .hero-info h1 { margin: 0 0 6px; font-size: 26px; }
+.student-hero .hero-meta { display:flex; gap:10px; align-items:center; color: #eaf2ff; }
+.role-badge { display:inline-block; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.22); color:#fff; border-radius:999px; padding: 4px 10px; font-weight:700; font-size:12px; }
+.student-hero .hero-stats { display:flex; gap:12px; margin-top: 8px; }
+.stat-card { flex:1; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); border-radius: 12px; padding: 10px; text-align:center; }
+.stat-card .label { font-size: 12px; color: #eaf2ff; }
+.stat-card .value { font-size: 22px; font-weight: 800; color: #fff; }
+
+.profile-card { background:#fff; border:1px solid #e5e7eb; border-radius: 14px; padding: 14px; margin-top: 18px; }
+.profile-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 12px; }
+.profile-grid .label { font-size: 12px; color: #6b7280; }
+.profile-grid .value { font-weight: 700; color: #0a4ea8; }
+
+.student-courses { margin-top: 18px; }
+.section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
+.section-head h2 { margin: 0; color: #0a4ea8; }
+.course-card .code { color:#666; font-size:12px; }
+.progress-track { width: 100%; height: 8px; background: #eef2ff; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.progress-bar { height: 100%; background: #0c61cf; }
+.progress-label { font-size: 12px; color:#666; margin-top: 4px; }
+
+.activity-section { margin-top: 18px; background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding: 12px; }
+.activity-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.activity-item { display:flex; gap:10px; padding: 10px 12px; border:1px solid #eef2ff; border-radius: 10px; align-items: baseline; }
+.activity-item .time { color:#6b7280; font-size:12px; }
+.activity-item .action { font-weight:700; color:#0a4ea8; }
+.activity-item .target { color:#374151; }
+
+/* --- Admin page styles --- */
+.admin-page { max-width: 980px; margin: 2rem auto; padding: 0 12px; }
+.admin-hero { display:flex; align-items:center; justify-content:space-between; gap: 16px; background: linear-gradient(90deg, #0a4ea8, #0e6de6); color:#fff; border-radius:18px; padding:18px; box-shadow: 0 10px 20px rgba(10,78,168,0.12); }
+.admin-hero h1 { margin:0; font-size: 26px; }
+.admin-hero .sub { color: #eaf2ff; margin-top: 4px; }
+.admin-hero .hero-stats { display:flex; gap:12px; }
+.admin-hero .hero-stats .stat-card { min-width: 110px; }
+.admin-section { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding: 12px; margin-top: 16px; }
+.admin-section .section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
+.admin-section h2 { margin:0; color:#0a4ea8; }
+.tabs { display:flex; align-items:center; gap:12px; margin-top: 12px; flex-wrap: wrap; }
+.tab { display:inline-flex; align-items:center; height: 40px; padding:0 18px; border:1px solid #e5e7eb; border-radius: 999px; background:#fff; color:#0a4ea8; cursor:pointer; font-weight:700; font-size:16px; line-height:1; }
+.tab.active { background:#0a4ea8; color:#fff; border-color:#0a4ea8; box-shadow: 0 6px 14px rgba(10,78,168,0.18); }
+.subtabs { display:flex; align-items:center; gap:10px; margin: 8px 0 12px; flex-wrap: wrap; }
+.subtab { display:inline-flex; align-items:center; height: 34px; padding:0 12px; border:1px solid #e5e7eb; border-radius: 999px; background:#fff; color:#374151; cursor:pointer; font-size: 14px; line-height:1; }
+.subtab.active { background:#f2f7ff; color:#0a4ea8; border-color:#cfe1ff; box-shadow: 0 4px 10px rgba(12,97,207,0.10); }
+.filter-bar { display:flex; align-items:center; gap:8px; margin-bottom: 10px; }
+.filter-bar input { height: 34px; border:1px solid #e5e7eb; border-radius:10px; padding:0 10px; flex:1; }
+.status-badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+.status-badge.active { background:#e8fbf0; color:#18a05f; border:1px solid #b9e7cb; }
+.status-badge.inactive { background:#fff6e5; color:#c77d00; border:1px solid #f0d39b; }
+.status-badge.blocked { background:#feecec; color:#d93025; border:1px solid #f5b5b2; }
+.data-table { display:grid; gap: 6px; }
+.data-table .row { display:grid; grid-template-columns: minmax(140px, 1.2fr) minmax(200px, 1.5fr) minmax(110px, 0.9fr) minmax(180px, 1.1fr) minmax(160px, 1.1fr); gap: 8px; align-items:center; padding: 10px 12px; border:1px solid #eef2ff; border-radius: 10px; }
+.data-table .row.head { background:#f7faff; border-color:#e5e7eb; font-weight:700; }
+.data-table .row > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-table select { height: 34px; border:1px solid #e5e7eb; border-radius:10px; padding:0 8px; }
+.inline-form { display:grid; grid-template-columns: 1.2fr 1.4fr 1fr 1fr auto; gap: 8px; margin-bottom: 10px; }
+.inline-form input { height: 38px; border:1px solid #e5e7eb; border-radius:10px; padding:0 10px; }
+.inline-form .btn { min-width: 160px; height: 38px; padding: 0 16px; font-size: 16px; box-shadow: none; }
+/* field + error styling */
+.inline-form .field { display:flex; flex-direction:column; }
+.inline-form input[aria-invalid="true"] { border-color:#f19999; background:#fff5f5; }
+.form-error { color:#d93025; font-size:12px; margin-top:4px; }
+
+/* Panels for logical grouping */
+.panel { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; margin-bottom:12px; }
+.panel-title { font-weight:700; color:#0a4ea8; margin:0 0 10px; }
+.list-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.list-count { font-size:13px; color:#6b7280; }
+.empty-state { padding:12px; border:1px dashed #cfe1ff; border-radius:12px; color:#6b7280; text-align:center; }
+
+@media (max-width: 920px) {
+  .data-table .row { grid-template-columns: 1.3fr 1.5fr 1fr 1.1fr auto; }
+}
+@media (max-width: 680px) {
+  .data-table .row { grid-template-columns: 1fr; }
+  .data-table .row.head { grid-template-columns: 1fr; }
+}
