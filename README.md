@@ -56,7 +56,6 @@ The system features **role-based hierarchical access control**, **real-time moni
 | **Database** | MongoDB |
 | **Authentication** | JWT / OAuth2 |
 | **DevOps / CI-CD** | GitHub Actions |
-| **Monitoring** | Prometheus / Grafana / ELK Stack |
 | **Security Protocols** | HTTPS, MFA, ZTA |
 
 ---
@@ -123,7 +122,7 @@ ELK Stack (Optional)	Centralized logging (Elasticsearch, Logstash, Kibana)
 - Email (Nodemailer):
   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`
 - App base URL (for links):
-  - `APP_BASE_URL` (default `http://localhost:4000`)
+  - `APP_BASE_URL` (default `http://localhost:5176`)
 - SMS (Twilio REST API):
   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
 
