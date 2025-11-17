@@ -139,7 +139,7 @@ export function I18nProvider({ children }) {
     const table = messages[lang] || messages.vi
     return table[key] ?? key
   }, [lang])
-  const onSet = React.useCallback((l) => { setLang(l); try { localStorage.setItem('lang', l) } catch {} }, [])
+  const onSet = React.useCallback((l) => { setLang(l); try { localStorage.setItem('lang', l) } catch { void 0 } }, [])
   return (
     <I18nContext.Provider value={{ lang, t, setLang: onSet }}>
       {children}

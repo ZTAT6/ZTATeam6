@@ -1,7 +1,8 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { requireRole } from "../middlewares/auth.js";
-import { User, ActivityLog, Course, Enrollment } from "../models/index.js";
+import { User, ActivityLog, Course, Enrollment, Classroom } from "../models/index.js";
+import { generateCode } from "../utils/verification.js";
 import { hashPassword } from "../utils/password.js";
 import mongoose from "mongoose";
 
@@ -107,7 +108,11 @@ router.get("/activity", async (req, res) => {
     const query = {};
     if (userId) query.user_id = userId;
     if (status) query.status = status;
-    const items = await ActivityLog.find(query).sort({ timestamp: -1 }).limit(Number(limit)).lean();
+    const items = await ActivityLog.find(query)
+      .populate("user_id", "username full_name role")
+      .sort({ timestamp: -1 })
+      .limit(Number(limit))
+      .lean();
     return res.status(200).json(items);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch activity logs" });
@@ -117,21 +122,146 @@ router.get("/activity", async (req, res) => {
 // List courses (admin-only)
 router.get("/courses", async (req, res) => {
   try {
-    const courses = await Course.find({}).select("title status created_at updated_at lecturer_id").sort({ created_at: -1 }).lean();
+    const courses = await Course.find({})
+      .select("code title status created_at updated_at lecturer_id")
+      .populate("lecturer_id", "full_name username")
+      .sort({ created_at: -1 })
+      .lean();
     return res.status(200).json(courses);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch courses" });
   }
 });
 
+router.post(
+  "/courses",
+  [
+    body("title").isString().isLength({ min: 3 }),
+    body("description").optional().isString(),
+    body("lecturer_id").optional().isMongoId(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    try {
+      const { title, description, lecturer_id } = req.body;
+      let lecturer = null;
+      if (lecturer_id) {
+        lecturer = await User.findById(lecturer_id);
+        if (!lecturer || lecturer.role !== "teacher") {
+          return res.status(400).json({ error: "Invalid lecturer_id" });
+        }
+      }
+      let code = generateCode();
+      for (let i = 0; i < 3; i++) {
+        const exists = await Course.findOne({ code }).lean();
+        if (!exists) break;
+        code = generateCode();
+      }
+      const course = await Course.create({
+        code,
+        title: String(title || "").trim(),
+        description: typeof description === "string" ? description : undefined,
+        lecturer_id: lecturer ? lecturer._id : undefined,
+        updated_at: new Date(),
+      });
+      return res.status(201).json({ id: course._id, title: course.title, code: course.code });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: err?.message || "Create course failed" });
+    }
+  }
+);
+
 // List recent enrollments (admin-only)
 router.get("/enrollments", async (req, res) => {
   try {
     const { limit = 50 } = req.query;
-    const items = await Enrollment.find({}).sort({ enrolled_at: -1 }).limit(Number(limit)).lean();
+    const items = await Enrollment.find({})
+      .populate("student_id", "full_name username email")
+      .populate("course_id", "title status")
+      .sort({ enrolled_at: -1 })
+      .limit(Number(limit))
+      .lean();
     return res.status(200).json(items);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch enrollments" });
+  }
+});
+
+router.get("/classes", async (req, res) => {
+  try {
+    const classes = await Classroom.find({})
+      .select("name status created_at updated_at course_id teacher_id join_code")
+      .populate("course_id", "title")
+      .populate("teacher_id", "full_name username")
+      .sort({ created_at: -1 })
+      .lean();
+    return res.status(200).json(classes);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch classes" });
+  }
+});
+
+router.post(
+  "/classes",
+  [
+    body("name").isString().isLength({ min: 1 }),
+    body("course_id").isMongoId(),
+    body("teacher_id").optional().isMongoId(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    try {
+      const { name, course_id, teacher_id } = req.body;
+      const course = await Course.findById(course_id);
+      if (!course) return res.status(404).json({ error: "Course not found" });
+      let teacher = null;
+      if (teacher_id) {
+        teacher = await User.findById(teacher_id);
+        if (!teacher || teacher.role !== "teacher") {
+          return res.status(400).json({ error: "Invalid teacher_id" });
+        }
+      }
+      let code = generateCode();
+      for (let i = 0; i < 3; i++) {
+        const exists = await Classroom.findOne({ join_code: code }).lean();
+        if (!exists) break;
+        code = generateCode();
+      }
+      const classroom = await Classroom.create({
+        name,
+        course_id: course._id,
+        teacher_id: teacher ? teacher._id : undefined,
+        updated_at: new Date(),
+        join_code: code,
+      });
+      return res.status(201).json({ id: classroom._id, name: classroom.name, join_code: classroom.join_code });
+    } catch (err) {
+      return res.status(500).json({ error: "Create class failed" });
+    }
+  }
+);
+
+router.patch("/classes/:id/regenerate-code", async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
+  try {
+    const cls = await Classroom.findById(id);
+    if (!cls) return res.status(404).json({ error: "Class not found" });
+    let code = generateCode();
+    for (let i = 0; i < 3; i++) {
+      const exists = await Classroom.findOne({ join_code: code }).lean();
+      if (!exists) break;
+      code = generateCode();
+    }
+    cls.join_code = code;
+    cls.updated_at = new Date();
+    await cls.save();
+    return res.status(200).json({ id: cls._id, join_code: cls.join_code });
+  } catch (err) {
+    return res.status(500).json({ error: "Regenerate code failed" });
   }
 });
 

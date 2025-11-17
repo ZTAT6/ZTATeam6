@@ -36,7 +36,7 @@ function decodeRoleFromToken(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
     return payload.role
-  } catch (e) {
+  } catch {
     return null
   }
 }
@@ -83,6 +83,8 @@ function LoginPage() {
       if (res.token && res.role) {
         saveAuth(res.token, res.role)
         nav(`/${res.role}`)
+      } else if (res.challengeId) {
+        nav(`/confirm-login/${encodeURIComponent(res.challengeId)}`)
       } else if (res.message) {
         alert(res.message)
       }
@@ -104,7 +106,7 @@ function LoginPage() {
       const body = { username: username || email, password, email, channel: 'email' }
       const res = await api('/auth/register', { method: 'POST', body: JSON.stringify(body) })
       const ident = email
-      try { localStorage.setItem('pending_identifier', ident); localStorage.setItem('pending_channel', 'email') } catch {}
+      try { localStorage.setItem('pending_identifier', ident); localStorage.setItem('pending_channel', 'email') } catch { void 0 }
       alert(res.message || 'Signup successful. Check your email for the code.')
       nav('/verify')
     } catch (err) {
@@ -187,7 +189,7 @@ function VerifyPage() {
     try {
       const ident = localStorage.getItem('pending_identifier') || ''
       if (ident) setEmail(ident)
-    } catch {}
+    } catch { void 0 }
   }, [])
 
   async function onResend() {
@@ -202,7 +204,7 @@ function VerifyPage() {
     e.preventDefault()
     try {
       const res = await api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ email, code }) })
-      alert(res.message || 'Verified! You can now log in.')
+      alert(res.message || 'Xác thực email thành công. Tài khoản sẽ được kích hoạt sau khi admin duyệt.')
       nav('/login')
     } catch (err) {
       alert(err?.data?.error || 'Verification failed')
@@ -250,49 +252,234 @@ function ActivityList({ items }) {
   const list = Array.isArray(items) ? items : []
   return (
     <ul className="activity-list">
-      {list.map((it) => (
-        <li className="activity-item" key={`${it._id || it.timestamp || Math.random()}`}>
-          <span className="time">{it.timestamp}</span>
-          <span className="action">{it.action}</span>
-          {it.target ? <span className="target">{` ${it.target}`}</span> : null}
-        </li>
-      ))}
+      {list.map((it) => {
+        const user = typeof it.user_id === 'object' ? (it.user_id.full_name || it.user_id.username || it.user_id.role || '') : (it.user_id || '')
+        const ts = it.timestamp ? new Date(it.timestamp).toLocaleString() : ''
+        const status = it.status ? String(it.status) : ''
+        const ip = it.ip_address || ''
+        const device = it.device_info || ''
+        return (
+          <li className="activity-item" key={`${it._id || it.timestamp || Math.random()}`}>
+            <span className="time">{ts}</span>
+            <span className="action" style={{ fontWeight: 600 }}>{it.action}</span>
+            {it.target ? <span className="target">{` ${it.target}`}</span> : null}
+            {status ? <span style={{ marginLeft: 8 }} className={`status-badge`}>{status}</span> : null}
+            {user ? <span style={{ marginLeft: 12 }}>{user}</span> : null}
+            {ip ? <span style={{ marginLeft: 12 }}>{ip}</span> : null}
+            {device ? <span style={{ marginLeft: 12, color: '#666' }}>{device.slice(0, 40)}</span> : null}
+          </li>
+        )
+      })}
     </ul>
   )
 }
 
 function TeacherPage() {
   const [items, setItems] = useState([])
+  const [myCourses, setMyCourses] = useState([])
+  const [myClasses, setMyClasses] = useState([])
+  const [profile, setProfile] = useState(null)
+  const [creatingClass, setCreatingClass] = useState(false)
+  const [classForm, setClassForm] = useState({ name: '', course_id: '' })
+  const [classErrors, setClassErrors] = useState({})
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
     fetch('/me/activity?limit=50', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setItems).catch(() => {})
+    fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(setProfile).catch(() => {})
+    fetch('/teacher/courses', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(setMyCourses).catch(() => {})
+    fetch('/teacher/classes', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(setMyClasses).catch(() => {})
   }, [])
+  function validateClassForm(f) {
+    const e = {}
+    if (!f.name || f.name.trim().length < 1) e.name = 'Tên lớp không được để trống'
+    if (!f.course_id || !/^[0-9a-fA-F]{24}$/.test(f.course_id)) e.course_id = 'Khoá học không hợp lệ'
+    return e
+  }
+  async function onCreateClass(e) {
+    e.preventDefault()
+    const vErrors = validateClassForm(classForm)
+    if (Object.keys(vErrors).length) { setClassErrors(vErrors); return }
+    setCreatingClass(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const payload = { name: classForm.name, course_id: classForm.course_id }
+      const res = await fetch('/teacher/classes', { method:'POST', headers: hdr, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Create failed')
+      fetch('/teacher/classes', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then(setMyClasses).catch(()=>{})
+      alert('Đã tạo lớp')
+      setClassForm({ name:'', course_id:'' })
+      setClassErrors({})
+    } catch (err) {
+      alert(err.message || 'Create class failed')
+    } finally { setCreatingClass(false) }
+  }
+  async function onUpdateClassStatus(classId, nextStatus) {
+    if (!classId || !nextStatus) return
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}`, { method:'PATCH', headers: hdr, body: JSON.stringify({ status: nextStatus }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Update failed')
+      setMyClasses(prev => Array.isArray(prev) ? prev.map(c => (c._id === classId ? { ...c, status: nextStatus } : c)) : prev)
+    } catch (err) {
+      alert(err.message || 'Update status failed')
+    }
+  }
+  async function onRegenerateClassCode(classId) {
+    if (!classId) return
+    try {
+      const { token } = getAuth()
+      const hdr = { Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}/regenerate-code`, { method:'PATCH', headers: hdr })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Regenerate failed')
+      setMyClasses(prev => Array.isArray(prev) ? prev.map(c => (c._id === classId ? { ...c, join_code: json.join_code } : c)) : prev)
+    } catch (err) {
+      alert(err.message || 'Regenerate code failed')
+    }
+  }
+  async function onCopyJoinCode(code) {
+    try {
+      if (!code) return
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code)
+        alert('Đã copy mã lớp')
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = code
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        alert('Đã copy mã lớp')
+      }
+    } catch {
+      alert('Copy thất bại')
+    }
+  }
   return (
-    <div style={{ maxWidth: 720, margin: '2rem auto' }}>
+    <div className="teacher-page">
       <TopBar />
-      <h2>Teacher Dashboard</h2>
-      <h3>My Activity</h3>
-      <ActivityList items={items} />
+
+      <section className="teacher-hero">
+        <div className="avatar" />
+        <div className="hero-info">
+          <h1>Xin chào, {profile?.full_name || profile?.username || 'Giáo viên'}</h1>
+          <div className="hero-meta">
+            <span className="role-badge">Teacher</span>
+            <span className="email">{profile?.email || '—'}</span>
+          </div>
+        </div>
+        <div className="hero-stats">
+          <div className="stat-card"><div className="label">Khoá học</div><div className="value">{Array.isArray(myCourses)?myCourses.length:0}</div></div>
+          <div className="stat-card"><div className="label">Lớp</div><div className="value">{Array.isArray(myClasses)?myClasses.length:0}</div></div>
+          <div className="stat-card"><div className="label">Đang hoạt động</div><div className="value">{Array.isArray(myClasses)?myClasses.filter(c=>c.status==='active').length:0}</div></div>
+        </div>
+      </section>
+
+      <section className="teacher-section">
+        <div className="section-head"><h2>Quản lý lớp</h2></div>
+        <div className="panel">
+          <h3 className="panel-title">Tạo lớp</h3>
+          <form className="stack-form" onSubmit={onCreateClass} aria-label="Tạo lớp">
+            <div className="field">
+              <label>Tên lớp</label>
+              <input type="text" placeholder="Nhập tên lớp" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
+              {classErrors.name && <div className="form-error">{classErrors.name}</div>}
+            </div>
+            <div className="field">
+              <select value={classForm.course_id} onChange={e=>{ setClassForm({ ...classForm, course_id: e.target.value }); if (classErrors.course_id) setClassErrors({ ...classErrors, course_id: undefined }) }}>
+                <option value="">Chọn khoá học của tôi</option>
+                {(Array.isArray(myCourses)?myCourses:[]).map(c => (
+                  <option key={c._id||c.id} value={c._id||c.id}>{c.title}</option>
+                ))}
+              </select>
+              {classErrors.course_id && <div className="form-error">{classErrors.course_id}</div>}
+            </div>
+            <button className="btn" disabled={creatingClass} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
+          </form>
+        </div>
+
+        <div className="panel" style={{ marginTop: 16 }}>
+          <h3 className="panel-title">Danh sách lớp của tôi</h3>
+          <div className="cards-grid">
+            {(Array.isArray(myClasses)?myClasses:[]).map((cl,i)=> (
+              <div key={cl._id||i} className="card">
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+                  <div className="title">{cl.name}</div>
+                  <span className={`status-badge ${cl.status}`}>{cl.status}</span>
+                </div>
+                <div className="meta">Khoá: {cl.course_id}</div>
+                <div className="meta">Mã lớp: {cl.join_code || '—'}</div>
+                <div className="meta">Tạo: {new Date(cl.created_at).toLocaleString()}</div>
+                <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                  <button className="btn" type="button" onClick={()=>onCopyJoinCode(cl.join_code)}>Copy mã</button>
+                  <button className="btn" type="button" onClick={()=>onRegenerateClassCode(cl._id)}>Đổi mã</button>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                  <select defaultValue={cl.status} onChange={(e)=>onUpdateClassStatus(cl._id, e.target.value)}>
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
+                    <option value="blocked">blocked</option>
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="activity-section" style={{ marginTop: 18 }}>
+        <div className="section-head"><h2>Hoạt động gần đây</h2></div>
+        <ActivityList items={items} />
+      </div>
     </div>
   )
 }
 
 function StudentPage() {
   const [profile, setProfile] = useState(null)
-  const [courses] = useState([
-    { title: 'Toán cơ bản', code: 'MATH101', progress: 0.6 },
-    { title: 'Văn học Việt Nam', code: 'LIT201', progress: 0.35 },
-    { title: 'Vật lý đại cương', code: 'PHYS110', progress: 0.8 },
-  ])
+  const [enrollments, setEnrollments] = useState([])
+  const [joinCode, setJoinCode] = useState('')
+  const [joining, setJoining] = useState(false)
   const [stats] = useState({ gpa: 3.6, credits: 12, pending: 2 })
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
     fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setProfile).catch(() => {})
+    fetch('/me/enrollments', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(setEnrollments).catch(() => {})
   }, [])
+
+  async function onJoinClass(e) {
+    e.preventDefault()
+    if (!joinCode || joinCode.trim().length !== 6) { alert('Mã lớp gồm 6 chữ số'); return }
+    setJoining(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch('/student/join', { method:'POST', headers: hdr, body: JSON.stringify({ code: joinCode.trim() }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Join failed')
+      alert('Tham gia lớp thành công')
+      fetch('/me/enrollments', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(setEnrollments).catch(() => {})
+      setJoinCode('')
+    } catch (err) {
+      alert(err.message || 'Join class failed')
+    } finally {
+      setJoining(false)
+    }
+  }
   return (
     <div className="student-page">
       <TopBar />
@@ -343,19 +530,30 @@ function StudentPage() {
         <div className="section-head">
           <h2>Khoá học của tôi</h2>
         </div>
+        <div className="panel" style={{ marginBottom: 12 }}>
+          <h3 className="panel-title">Tham gia lớp bằng mã</h3>
+          <form className="stack-form" onSubmit={onJoinClass} aria-label="Join class">
+            <div className="field">
+              <input type="text" placeholder="Nhập mã lớp (6 số)" value={joinCode} onChange={e=>setJoinCode(e.target.value)} />
+            </div>
+            <button className="btn" disabled={joining} type="submit">{joining? 'Đang tham gia...' : 'Tham gia lớp'}</button>
+          </form>
+        </div>
         <div className="courses-grid">
-          {courses.map(c => (
-            <div key={c.code} className="course-card">
+          {(Array.isArray(enrollments)?enrollments:[]).map(e => (
+            <div key={(e._id||e.course_id?._id||e.course_id)} className="course-card">
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
-                <h3 style={{ margin: 0 }}>{c.title}</h3>
-                <span className="code">{c.code}</span>
+                <h3 style={{ margin: 0 }}>{e.course_id?.title || 'Khoá học'}</h3>
               </div>
               <div className="progress-track">
-                <div className="progress-bar" style={{ width: `${Math.round(c.progress * 100)}%` }} />
+                <div className="progress-bar" style={{ width: `0%` }} />
               </div>
-              <div className="progress-label">Tiến độ: {Math.round(c.progress * 100)}%</div>
+              <div className="progress-label">Đã tham gia: {new Date(e.enrolled_at).toLocaleDateString()}</div>
             </div>
           ))}
+          {Array.isArray(enrollments) && enrollments.length === 0 && (
+            <div className="empty-state">Chưa có khoá học nào. Vui lòng liên hệ quản trị.</div>
+          )}
         </div>
       </section>
 
@@ -368,13 +566,21 @@ function AdminPage() {
   const [students, setStudents] = useState([])
   const [teachers, setTeachers] = useState([])
   const [courses, setCourses] = useState([])
+  const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [activity, setActivity] = useState([])
+  const [activityFilter, setActivityFilter] = useState({ userId: '', status: '', limit: '50' })
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ username: '', email: '', full_name: '', password: '' })
   const [errors, setErrors] = useState({})
+  const [creatingCourse, setCreatingCourse] = useState(false)
+  const [courseForm, setCourseForm] = useState({ title: '', description: '', lecturer_id: '' })
+  const [courseErrors, setCourseErrors] = useState({})
+  const [creatingClass, setCreatingClass] = useState(false)
+  const [classForm, setClassForm] = useState({ name: '', course_id: '', teacher_id: '' })
+  const [classErrors, setClassErrors] = useState({})
   const [updating, setUpdating] = useState(false)
-  const [tab, setTab] = useState('users') // users | courses | enrollments | activity
+  const [tab, setTab] = useState('users')
   const [userView, setUserView] = useState('teachers') // teachers | students
   const [query, setQuery] = useState('')
   useEffect(() => {
@@ -384,9 +590,45 @@ function AdminPage() {
     fetch('/admin/users/students', { headers: hdr }).then(r=>r.json()).then(setStudents).catch(()=>{})
     fetch('/admin/users/teachers', { headers: hdr }).then(r=>r.json()).then(setTeachers).catch(()=>{})
     fetch('/admin/courses', { headers: hdr }).then(r=>r.json()).then(setCourses).catch(()=>{})
+    fetch('/admin/classes', { headers: hdr }).then(r=>r.json()).then(setClasses).catch(()=>{})
     fetch('/admin/enrollments?limit=20', { headers: hdr }).then(r=>r.json()).then(setEnrollments).catch(()=>{})
-    fetch('/admin/activity?limit=20', { headers: hdr }).then(r=>r.json()).then(setActivity).catch(()=>{})
+    fetch('/admin/activity?limit=50', { headers: hdr }).then(r=>r.json()).then(setActivity).catch(()=>{})
   }, [])
+
+  function fetchAdminActivity(params) {
+    const { token } = getAuth()
+    const hdr = { Authorization: `Bearer ${token}` }
+    const q = new URLSearchParams()
+    const limitVal = (params?.limit || activityFilter.limit || '50')
+    if (limitVal) q.set('limit', String(limitVal))
+    const userIdVal = (params?.userId ?? activityFilter.userId).trim()
+    if (userIdVal) q.set('userId', userIdVal)
+    const statusVal = (params?.status ?? activityFilter.status).trim()
+    if (statusVal) q.set('status', statusVal)
+    return fetch('/admin/activity?' + q.toString(), { headers: hdr })
+      .then(r=>r.json()).then(setActivity).catch(()=>{})
+  }
+
+  function onApplyActivityFilter(e) {
+    if (e && e.preventDefault) e.preventDefault()
+    fetchAdminActivity(activityFilter)
+  }
+
+  function exportActivityCsv() {
+    const cols = ['timestamp','user_id','action','target','status','ip_address','device_info']
+    const list = Array.isArray(activity) ? activity : []
+    function esc(v) { const s = v==null? '' : String(v).replace(/"/g,'""'); return '"' + s + '"' }
+    const lines = [cols.join(',')].concat(list.map(it => [esc(it.timestamp),esc(it.user_id),esc(it.action),esc(it.target),esc(it.status),esc(it.ip_address),esc(it.device_info)].join(',')))
+    const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'activity_logs.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   function validateTeacherForm(f) {
     const e = {}
@@ -442,6 +684,123 @@ function AdminPage() {
       setUpdating(false)
     }
   }
+  async function onAdminRegenerateClassCode(classId) {
+    if (!classId) return
+    try {
+      const { token } = getAuth()
+      const hdr = { Authorization: `Bearer ${token}` }
+      const res = await fetch(`/admin/classes/${encodeURIComponent(classId)}/regenerate-code`, { method:'PATCH', headers: hdr })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Regenerate failed')
+      setClasses(prev => Array.isArray(prev) ? prev.map(c => (c._id === classId ? { ...c, join_code: json.join_code } : c)) : prev)
+    } catch (err) {
+      alert(err.message || 'Regenerate code failed')
+    }
+  }
+  async function onAdminCopyJoinCode(code) {
+    try {
+      if (!code) return
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code)
+        alert('Đã copy mã lớp')
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = code
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        alert('Đã copy mã lớp')
+      }
+    } catch {
+      alert('Copy thất bại')
+    }
+  }
+
+  async function onAdminCopyCourseCode(code) {
+    try {
+      if (!code) return
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code)
+        alert('Đã copy mã khoá')
+      } else {
+        const ta = document.createElement('textarea')
+        ta.value = code
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+        alert('Đã copy mã khoá')
+      }
+    } catch {
+      alert('Copy thất bại')
+    }
+  }
+
+  function validateCourseForm(f) {
+    const e = {}
+    if (!f.title || f.title.trim().length < 3) e.title = 'Tên khoá học tối thiểu 3 ký tự'
+    if (f.lecturer_id && !/^[0-9a-fA-F]{24}$/.test(f.lecturer_id)) e.lecturer_id = 'Giảng viên không hợp lệ'
+    return e
+  }
+
+  async function onCreateCourse(e) {
+    e.preventDefault()
+    const vErrors = validateCourseForm(courseForm)
+    if (Object.keys(vErrors).length) { setCourseErrors(vErrors); return }
+    setCreatingCourse(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const payload = {
+        title: courseForm.title,
+        description: courseForm.description || undefined,
+        lecturer_id: courseForm.lecturer_id || undefined,
+      }
+      const res = await fetch('/admin/courses', { method:'POST', headers: hdr, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Create failed')
+      fetch('/admin/courses', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then(setCourses).catch(()=>{})
+      alert('Đã tạo khoá học. Mã: ' + (json.code||'—'))
+      setCourseForm({ title:'', description:'', lecturer_id:'' })
+      setCourseErrors({})
+    } catch (err) {
+      alert(err.message || 'Create course failed')
+    } finally { setCreatingCourse(false) }
+  }
+
+  function validateClassForm(f) {
+    const e = {}
+    if (!f.name || f.name.trim().length < 1) e.name = 'Tên lớp không được để trống'
+    if (!f.course_id || !/^[0-9a-fA-F]{24}$/.test(f.course_id)) e.course_id = 'Khoá học không hợp lệ'
+    if (f.teacher_id && !/^[0-9a-fA-F]{24}$/.test(f.teacher_id)) e.teacher_id = 'Giáo viên không hợp lệ'
+    return e
+  }
+
+  async function onCreateClass(e) {
+    e.preventDefault()
+    const vErrors = validateClassForm(classForm)
+    if (Object.keys(vErrors).length) { setClassErrors(vErrors); return }
+    setCreatingClass(true)
+    try {
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const payload = {
+        name: classForm.name,
+        course_id: classForm.course_id,
+        teacher_id: classForm.teacher_id || undefined,
+      }
+      const res = await fetch('/admin/classes', { method:'POST', headers: hdr, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Create failed')
+      fetch('/admin/classes', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then(setClasses).catch(()=>{})
+      alert('Đã tạo lớp')
+      setClassForm({ name:'', course_id:'', teacher_id:'' })
+      setClassErrors({})
+    } catch (err) {
+      alert(err.message || 'Create class failed')
+    } finally { setCreatingClass(false) }
+  }
 
   const usersFiltered = (userView === 'teachers' ? (Array.isArray(teachers)?teachers:[]) : (Array.isArray(students)?students:[]))
     .filter(u => {
@@ -455,6 +814,23 @@ function AdminPage() {
     teachers: Array.isArray(teachers) ? teachers.length : 0,
     courses: Array.isArray(courses) ? courses.length : 0,
     enrollments: Array.isArray(enrollments) ? enrollments.length : 0,
+  }
+
+
+  function displayTeacherName(val) {
+    if (!val) return '—'
+    if (typeof val === 'object') return val.full_name || val.username || '—'
+    const t = (Array.isArray(teachers)?teachers:[]).find(x => String(x._id) === String(val))
+      || (Array.isArray(students)?students:[]).find(x => String(x._id) === String(val))
+    return t ? (t.full_name || t.username || t.email || String(val)) : String(val)
+  }
+
+  function displayUserName(val) {
+    if (!val) return '—'
+    if (typeof val === 'object') return val.full_name || val.username || val.email || '—'
+    const u = (Array.isArray(students)?students:[]).find(x => String(x._id) === String(val))
+      || (Array.isArray(teachers)?teachers:[]).find(x => String(x._id) === String(val))
+    return u ? (u.full_name || u.username || u.email || String(val)) : String(val)
   }
 
   return (
@@ -493,7 +869,7 @@ function AdminPage() {
             {userView==='teachers' && (
               <div className="panel">
                 <h3 className="panel-title">Tạo giáo viên</h3>
-                <form className="inline-form" onSubmit={onCreateTeacher} aria-label="Tạo giáo viên">
+                <form className="stack-form" onSubmit={onCreateTeacher} aria-label="Tạo giáo viên">
                   <div className="field">
                     <input type="text" aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" value={form.username} aria-invalid={!!errors.username} onChange={e=>{ setForm({ ...form, username: e.target.value }); if (errors.username) setErrors({ ...errors, username: undefined }) }} />
                     {errors.username && <div className="form-error">{errors.username}</div>}
@@ -552,19 +928,110 @@ function AdminPage() {
         )}
 
         {tab === 'courses' && (
-          <div className="data-table">
-            <div className="row head">
-              <div>Tên</div><div>Giảng viên</div><div>Trạng thái</div><div>Ngày tạo</div><div>—</div>
+          <div>
+            <div className="panel">
+              <h3 className="panel-title">Tạo khoá học</h3>
+              <form className="inline-form" onSubmit={onCreateCourse} aria-label="Tạo khoá học">
+                <div className="field">
+                  <input type="text" placeholder="Tên khoá học" value={courseForm.title} aria-invalid={!!courseErrors.title} onChange={e=>{ setCourseForm({ ...courseForm, title: e.target.value }); if (courseErrors.title) setCourseErrors({ ...courseErrors, title: undefined }) }} />
+                  {courseErrors.title && <div className="form-error">{courseErrors.title}</div>}
+                </div>
+                <div className="field">
+                  <input type="text" placeholder="Mô tả" value={courseForm.description} onChange={e=> setCourseForm({ ...courseForm, description: e.target.value })} />
+                </div>
+                <div className="field">
+                  <select value={courseForm.lecturer_id} onChange={e=>{ setCourseForm({ ...courseForm, lecturer_id: e.target.value }); if (courseErrors.lecturer_id) setCourseErrors({ ...courseErrors, lecturer_id: undefined }) }}>
+                    <option value="">Giảng viên (tuỳ chọn)</option>
+                    {(Array.isArray(teachers)?teachers:[]).map(t => (
+                      <option key={t._id} value={t._id}>{t.full_name || t.username}</option>
+                    ))}
+                  </select>
+                  {courseErrors.lecturer_id && <div className="form-error">{courseErrors.lecturer_id}</div>}
+                </div>
+                <button className="btn" disabled={creatingCourse} type="submit">{creatingCourse? 'Đang tạo...' : 'Tạo khoá học'}</button>
+              </form>
             </div>
-            {(Array.isArray(courses)?courses:[]).map((c,i)=> (
-              <div key={i} className="row">
-                <div>{c.title}</div>
-                <div>{c.lecturer_id||'—'}</div>
-                <div><span className={`status-badge ${c.status}`}>{c.status}</span></div>
-                <div>{new Date(c.created_at).toLocaleString()}</div>
-                <div>—</div>
+
+            <div className="panel" style={{ marginTop: 16 }}>
+              <h3 className="panel-title">Danh sách khoá học</h3>
+              <div className="data-table cols-6">
+                <div className="row head">
+                  <div>Tên</div><div>Mã khoá</div><div>Giảng viên</div><div>Trạng thái</div><div>Ngày tạo</div><div>—</div>
+                </div>
+                {(Array.isArray(courses)?courses:[]).map((c,i)=> (
+                  <div key={i} className="row">
+                    <div>{c.title}</div>
+                    <div>
+                      <div className="code-badge">{c.code||'—'}</div>
+                      {c.code && (
+                        <div className="code-actions">
+                          <button className="btn btn-sm" type="button" onClick={()=>onAdminCopyCourseCode(c.code)}>Copy</button>
+                        </div>
+                      )}
+                    </div>
+                    <div>{displayTeacherName(c.lecturer_id)}</div>
+                    <div><span className={`status-badge ${c.status}`}>{c.status}</span></div>
+                    <div>{new Date(c.created_at).toLocaleString()}</div>
+                    <div>—</div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            <div className="panel" style={{ marginTop: 24 }}>
+              <h3 className="panel-title">Tạo lớp</h3>
+              <form className="inline-form" onSubmit={onCreateClass} aria-label="Tạo lớp">
+                <div className="field">
+                  <label>Tên lớp</label>
+                  <input type="text" placeholder="Nhập tên lớp" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
+                  {classErrors.name && <div className="form-error">{classErrors.name}</div>}
+                </div>
+                <div className="field">
+                  <select value={classForm.course_id} onChange={e=>{ setClassForm({ ...classForm, course_id: e.target.value }); if (classErrors.course_id) setClassErrors({ ...classErrors, course_id: undefined }) }}>
+                    <option value="">Chọn khoá học</option>
+                    {(Array.isArray(courses)?courses:[]).map(c => (
+                      <option key={c._id||c.id} value={c._id||c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                  {classErrors.course_id && <div className="form-error">{classErrors.course_id}</div>}
+                </div>
+                <div className="field">
+                  <select value={classForm.teacher_id} onChange={e=>{ setClassForm({ ...classForm, teacher_id: e.target.value }); if (classErrors.teacher_id) setClassErrors({ ...classErrors, teacher_id: undefined }) }}>
+                    <option value="">Giáo viên (tuỳ chọn)</option>
+                    {(Array.isArray(teachers)?teachers:[]).map(t => (
+                      <option key={t._id} value={t._id}>{t.full_name || t.username}</option>
+                    ))}
+                  </select>
+                  {classErrors.teacher_id && <div className="form-error">{classErrors.teacher_id}</div>}
+                </div>
+                <button className="btn" disabled={creatingClass} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
+              </form>
+            </div>
+
+            <div className="panel" style={{ marginTop: 16 }}>
+              <h3 className="panel-title">Danh sách lớp</h3>
+              <div className="data-table cols-6">
+                <div className="row head">
+                  <div>Tên lớp</div><div>Khoá học</div><div>Mã lớp</div><div>Giáo viên</div><div>Trạng thái</div><div>Ngày tạo</div>
+                </div>
+                {(Array.isArray(classes)?classes:[]).map((cl,i)=> (
+                  <div key={i} className="row">
+                    <div>{cl.name}</div>
+                    <div>{typeof cl.course_id === 'object' ? (cl.course_id.title || '—') : String(cl.course_id)}</div>
+                    <div>
+                      <div>{cl.join_code||'—'}</div>
+                      <div style={{ display:'flex', gap:8, marginTop:6 }}>
+                        <button className="btn btn-sm" type="button" onClick={()=>onAdminCopyJoinCode(cl.join_code)}>Copy</button>
+                        <button className="btn btn-sm" type="button" onClick={()=>onAdminRegenerateClassCode(cl._id)}>Đổi mã</button>
+                      </div>
+                    </div>
+                    <div>{displayTeacherName(cl.teacher_id)}</div>
+                    <div><span className={`status-badge ${cl.status}`}>{cl.status}</span></div>
+                    <div>{new Date(cl.created_at).toLocaleString()}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -575,8 +1042,8 @@ function AdminPage() {
             </div>
             {(Array.isArray(enrollments)?enrollments:[]).map((e,i)=> (
               <div key={i} className="row">
-                <div>{e.student_id}</div>
-                <div>{e.course_id}</div>
+                <div>{displayUserName(e.student_id)}</div>
+                <div>{typeof e.course_id === 'object' ? (e.course_id.title || '—') : String(e.course_id)}</div>
                 <div><span className={`status-badge ${e.status}`}>{e.status}</span></div>
                 <div>{new Date(e.enrolled_at||e.created_at).toLocaleString()}</div>
                 <div>—</div>
@@ -587,9 +1054,38 @@ function AdminPage() {
 
         {tab === 'activity' && (
           <div className="activity-section">
-            <ActivityList items={activity} />
+            <div className="panel">
+              <h3 className="panel-title">Hoạt động hệ thống</h3>
+              <form className="inline-form" onSubmit={onApplyActivityFilter} aria-label="Lọc hoạt động">
+                <div className="field">
+                  <input type="text" placeholder="User ID" value={activityFilter.userId} onChange={e=>setActivityFilter({ ...activityFilter, userId: e.target.value })} />
+                </div>
+                <div className="field">
+                  <select value={activityFilter.status} onChange={e=>setActivityFilter({ ...activityFilter, status: e.target.value })}>
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="200">200</option>
+                    <option value="401">401</option>
+                    <option value="403">403</option>
+                    <option value="404">404</option>
+                    <option value="500">500</option>
+                  </select>
+                </div>
+                <div className="field">
+                  <select value={activityFilter.limit} onChange={e=>setActivityFilter({ ...activityFilter, limit: e.target.value })}>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="200">200</option>
+                  </select>
+                </div>
+                <button className="btn" type="submit">Lọc</button>
+                <button className="btn btn-sm" type="button" onClick={exportActivityCsv}>Xuất CSV</button>
+              </form>
+              <ActivityList items={activity} />
+            </div>
           </div>
         )}
+
       </section>
 
       {/* Các section cũ đã gom vào tabs trên để giao diện gọn hơn */}
@@ -615,9 +1111,7 @@ function ConfirmLoginPage() {
           setStatus('Confirmed! Redirecting...')
           nav(`/${role}`)
         }
-      } catch (e) {
-        // ignore transient errors
-      }
+      } catch { void 0 }
     }, 2000)
     return () => { active = false; clearInterval(t) }
   }, [id, nav])
@@ -714,7 +1208,7 @@ export default function App() {
           <Route path="/forgot" element={<ForgotPasswordPage />} />
           <Route path="/confirm-login/:id" element={<ConfirmLoginPage />} />
           <Route path="/teacher" element={<Protected allow={["teacher","admin"]}><TeacherPage /></Protected>} />
-          <Route path="/student" element={<Protected allow={["student","admin"]}><StudentPage /></Protected>} />
+          <Route path="/student" element={<Protected allow={["student"]}><StudentPage /></Protected>} />
           <Route path="/admin" element={<Protected allow={["admin"]}><AdminPage /></Protected>} />
           <Route path="*" element={<Navigate to="/home" />} />
         </Routes>

@@ -1,5 +1,5 @@
 import express from "express";
-import { ActivityLog, User } from "../models/index.js";
+import { ActivityLog, User, Enrollment } from "../models/index.js";
 
 const router = express.Router();
 
@@ -27,6 +27,19 @@ router.get("/profile", async (req, res) => {
     return res.status(200).json(user);
   } catch (err) {
     return res.status(500).json({ error: "Failed to fetch profile" });
+  }
+});
+
+// Get my enrollments
+router.get("/enrollments", async (req, res) => {
+  try {
+    const items = await Enrollment.find({ student_id: req.user.id })
+      .populate({ path: "course_id", select: "title status" })
+      .sort({ enrolled_at: -1 })
+      .lean();
+    return res.status(200).json(items);
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to fetch my enrollments" });
   }
 });
 

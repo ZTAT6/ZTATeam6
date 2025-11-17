@@ -14,6 +14,8 @@ import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import meRoutes from "./routes/me.js";
+import studentRoutes from "./routes/student.js";
+import teacherRoutes from "./routes/teacher.js";
 import { authMiddleware } from "./middlewares/auth.js";
 import { activityLogger } from "./middlewares/activityLogger.js";
 
@@ -63,7 +65,9 @@ app.use(express.static(clientDist));
 // Routes
 app.use("/auth", authRoutes);
 app.use("/admin", authMiddleware, activityLogger, adminRoutes);
+app.use("/teacher", authMiddleware, activityLogger, teacherRoutes);
 app.use("/me", authMiddleware, activityLogger, meRoutes);
+app.use("/student", authMiddleware, activityLogger, studentRoutes);
 
 // Health
 app.get("/health", (req, res) => {
@@ -97,7 +101,7 @@ app.get("/health/db", async (req, res) => {
 });
 
 // SPA fallback: match any route NOT starting with /auth, /admin, /me, /health
-app.get(/^(?!\/(auth|admin|me|health)).*/, (req, res) => {
+app.get(/^(?!\/(auth|admin|teacher|student|me|health)).*/, (req, res) => {
   return res.sendFile(path.join(clientDist, "index.html"));
 });
 

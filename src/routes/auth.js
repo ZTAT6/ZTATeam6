@@ -3,7 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { body, validationResult } from "express-validator";
-import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge, PasswordReset } from "../models/index.js";
+import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge, PasswordReset, Enrollment, Course } from "../models/index.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
 import { generateCode, sendVerificationEmail, sendLoginConfirmationEmail, sendVerificationSMS } from "../utils/verification.js";
 
@@ -183,10 +183,30 @@ router.post(
       }
 
       if (user.status !== "active") {
-        return res.status(403).json({ error: "Email not verified" });
+        return res.status(403).json({ error: "Account not active. Awaiting admin approval." });
       }
 
-      // Always allow immediate login (disable email confirmation)
+      // If device/IP differs from latest session, require email confirmation (LoginChallenge)
+      const latestSess = await Session.findOne({ user_id: user._id }).sort({ created_at: -1 }).lean();
+      const ipChanged = Boolean(latestSess && latestSess.ip_address && latestSess.ip_address !== ip);
+      const deviceChanged = Boolean(latestSess && latestSess.device_info && latestSess.device_info !== device);
+      if (latestSess && (ipChanged || deviceChanged)) {
+        const tokenChallenge = crypto.randomBytes(32).toString("hex");
+        const challenge = await LoginChallenge.create({
+          user_id: user._id,
+          token: tokenChallenge,
+          ip_address: ip,
+          device_info: device,
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        });
+        try {
+          await sendLoginConfirmationEmail({ to: user.email, token: tokenChallenge });
+        } catch (_) {}
+        return res.status(202).json({ message: "Confirm login via email", challengeId: challenge._id.toString() });
+      }
+
+      // Immediate login when no risk detected
       user.last_login = new Date();
       await user.save();
 
@@ -201,6 +221,21 @@ router.post(
         created_at: new Date(),
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
+
+      if (user.role === "student") {
+        try {
+          const count = await Enrollment.countDocuments({ student_id: user._id });
+          if (count === 0) {
+            const courses = await Course.find({ status: "active" }).select("_id").lean();
+            if (courses.length) {
+              const now = new Date();
+              await Enrollment.insertMany(
+                courses.map((c) => ({ student_id: user._id, course_id: c._id, enrolled_at: now, status: "active" }))
+              );
+            }
+          }
+        } catch (_) {}
+      }
 
       return res.status(200).json({ token, role: user.role });
     } catch (err) {
@@ -288,7 +323,7 @@ router.post(
           email: record.email,
           full_name: record.full_name,
           role: record.role || "student",
-          status: "active",
+          status: "inactive",
         });
         record.used_at = new Date();
         await record.save();
@@ -304,7 +339,7 @@ router.post(
       if (legacyRec.expires_at && legacyRec.expires_at < new Date()) return res.status(400).json({ error: "Code expired" });
       legacyRec.used_at = new Date();
       await legacyRec.save();
-      legacyUser.status = "active";
+      legacyUser.status = "inactive";
       await legacyUser.save();
       return res.status(200).json({ ok: true });
     } catch (err) {
@@ -351,7 +386,7 @@ router.post(
         phone: record.phone,
         full_name: record.full_name,
         role: record.role || "student",
-        status: "active",
+        status: "inactive",
       });
       record.used_at = new Date();
       await record.save();

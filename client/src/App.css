@@ -178,7 +178,7 @@ input[type="text"], input[type="email"], input[type="password"] {
 .activity-item .target { color:#374151; }
 
 /* --- Admin page styles --- */
-.admin-page { max-width: 980px; margin: 2rem auto; padding: 0 12px; }
+.admin-page { max-width: 1140px; margin: 2rem auto; padding: 0 12px; }
 .admin-hero { display:flex; align-items:center; justify-content:space-between; gap: 16px; background: linear-gradient(90deg, #0a4ea8, #0e6de6); color:#fff; border-radius:18px; padding:18px; box-shadow: 0 10px 20px rgba(10,78,168,0.12); }
 .admin-hero h1 { margin:0; font-size: 26px; }
 .admin-hero .sub { color: #eaf2ff; margin-top: 4px; }
@@ -200,21 +200,29 @@ input[type="text"], input[type="email"], input[type="password"] {
 .status-badge.inactive { background:#fff6e5; color:#c77d00; border:1px solid #f0d39b; }
 .status-badge.blocked { background:#feecec; color:#d93025; border:1px solid #f5b5b2; }
 .data-table { display:grid; gap: 6px; }
-.data-table .row { display:grid; grid-template-columns: minmax(140px, 1.2fr) minmax(200px, 1.5fr) minmax(110px, 0.9fr) minmax(180px, 1.1fr) minmax(160px, 1.1fr); gap: 8px; align-items:center; padding: 10px 12px; border:1px solid #eef2ff; border-radius: 10px; }
+.data-table .row { display:grid; grid-template-columns: minmax(160px, 1.3fr) minmax(220px, 1.6fr) minmax(130px, 1fr) minmax(200px, 1.2fr) minmax(180px, 1.1fr); gap: 10px; align-items:center; padding: 12px 14px; border:1px solid #eef2ff; border-radius: 10px; }
 .data-table .row.head { background:#f7faff; border-color:#e5e7eb; font-weight:700; }
 .data-table .row > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .data-table select { height: 34px; border:1px solid #e5e7eb; border-radius:10px; padding:0 8px; }
-.inline-form { display:grid; grid-template-columns: 1.2fr 1.4fr 1fr 1fr auto; gap: 8px; margin-bottom: 10px; }
-.inline-form input { height: 38px; border:1px solid #e5e7eb; border-radius:10px; padding:0 10px; }
-.inline-form .btn { min-width: 160px; height: 38px; padding: 0 16px; font-size: 16px; box-shadow: none; }
+.code-badge { display:inline-flex; align-items:center; gap:6px; background:#f7faff; border:1px solid #cfe1ff; color:#0a4ea8; border-radius:10px; padding:4px 10px; font-weight:700; font-size:12px; }
+.code-actions { display:flex; gap:8px; margin-top:6px; }
+.btn-sm { display:inline-flex; align-items:center; justify-content:center; height: 28px; padding: 0 10px; font-size: 12px; box-shadow: none; width: auto; min-width: 64px; border-radius: 8px; margin-top: 0; }
+.inline-form { display:grid; grid-template-columns: 1.6fr 1.8fr 1.4fr auto; gap: 12px; margin-bottom: 14px; }
+.inline-form input { height: 46px; border:1px solid #e5e7eb; border-radius:10px; padding:0 12px; font-size: 16px; }
+.inline-form select { height: 46px; border:1px solid #e5e7eb; border-radius:10px; padding:0 12px; font-size: 16px; }
+.inline-form .btn { min-width: 180px; height: 46px; padding: 0 18px; font-size: 18px; box-shadow: none; }
 /* field + error styling */
 .inline-form .field { display:flex; flex-direction:column; }
 .inline-form input[aria-invalid="true"] { border-color:#f19999; background:#fff5f5; }
 .form-error { color:#d93025; font-size:12px; margin-top:4px; }
 
 /* Panels for logical grouping */
-.panel { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:12px; margin-bottom:12px; }
-.panel-title { font-weight:700; color:#0a4ea8; margin:0 0 10px; }
+.panel { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:16px; margin-bottom:12px; }
+.panel-title { font-weight:700; color:#0a4ea8; margin:0 0 10px; font-size: 20px; }
+.stack-form { display:flex; flex-direction:column; gap: 12px; max-width: 680px; }
+.stack-form .field input { height: 48px; border:1px solid #e5e7eb; border-radius:10px; padding:0 12px; font-size: 16px; }
+.stack-form .field input[type="password"] { font-size: 16px; }
+.stack-form .btn { width: auto; min-width: 200px; height: 48px; padding: 0 20px; font-size: 18px; }
 .list-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
 .list-count { font-size:13px; color:#6b7280; }
 .empty-state { padding:12px; border:1px dashed #cfe1ff; border-radius:12px; color:#6b7280; text-align:center; }
@@ -226,3 +234,22 @@ input[type="text"], input[type="email"], input[type="password"] {
   .data-table .row { grid-template-columns: 1fr; }
   .data-table .row.head { grid-template-columns: 1fr; }
 }
+
+.data-table.cols-6 .row { grid-template-columns: minmax(180px, 1.4fr) minmax(180px, 1.1fr) minmax(160px, 1fr) minmax(140px, .9fr) minmax(180px, 1fr) auto; }
+.data-table.cols-6 .row.head { grid-template-columns: minmax(180px, 1.4fr) minmax(180px, 1.1fr) minmax(160px, 1fr) minmax(140px, .9fr) minmax(180px, 1fr) auto; }
+
+/* --- Teacher page styles --- */
+.teacher-page { max-width: 1140px; margin: 2rem auto; padding: 0 12px; }
+.teacher-hero { display:flex; align-items:center; justify-content:space-between; gap: 16px; background: linear-gradient(90deg, #0a4ea8, #0e6de6); color:#fff; border-radius:18px; padding:18px; box-shadow: 0 10px 20px rgba(10,78,168,0.12); }
+.teacher-hero .avatar { width: 80px; height: 80px; border-radius: 999px; background: rgba(255,255,255,.25); border: 2px solid rgba(255,255,255,.4); }
+.teacher-hero .hero-info h1 { margin: 0 0 6px; font-size: 26px; }
+.teacher-hero .hero-meta { display:flex; gap:10px; align-items:center; color: #eaf2ff; }
+.teacher-hero .hero-stats { display:flex; gap:12px; }
+.teacher-section { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding: 12px; margin-top: 16px; }
+.cards-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 12px; }
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding: 12px; transition: box-shadow .2s ease, transform .2s ease; }
+.card:hover { box-shadow: 0 10px 18px rgba(0,0,0,.06); transform: translateY(-2px); }
+.card .title { font-weight:700; color:#0a4ea8; }
+.card .meta { color:#6b7280; font-size:12px; margin-top:6px; }
+.data-table.cols-6 .row { grid-template-columns: minmax(160px, 1.2fr) minmax(120px, .9fr) minmax(180px, 1.2fr) minmax(140px, .9fr) minmax(180px, 1fr) auto; }
+.data-table.cols-6 .row.head { grid-template-columns: minmax(160px, 1.2fr) minmax(120px, .9fr) minmax(180px, 1.2fr) minmax(140px, .9fr) minmax(180px, 1fr) auto; }

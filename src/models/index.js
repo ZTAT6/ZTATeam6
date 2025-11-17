@@ -19,6 +19,7 @@ userSchema.index({ email: 1 }, { unique: true });
 
 // COURSES
 const courseSchema = new mongoose.Schema({
+  code: { type: String },
   title: String,
   description: String,
   lecturer_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -26,6 +27,8 @@ const courseSchema = new mongoose.Schema({
   updated_at: Date,
   status: { type: String, default: "active" },
 });
+
+courseSchema.index({ code: 1 }, { unique: true, partialFilterExpression: { code: { $type: "string" } } });
 
 // MATERIALS
 const materialSchema = new mongoose.Schema({
@@ -161,3 +164,28 @@ const passwordResetSchema = new mongoose.Schema({
 passwordResetSchema.index({ user_id: 1, created_at: -1 });
 
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
+
+// CLASSES
+const classroomSchema = new mongoose.Schema({
+  name: String,
+  course_id: { type: mongoose.Schema.Types.ObjectId, ref: "Course" },
+  teacher_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  created_at: { type: Date, default: Date.now },
+  updated_at: Date,
+  status: { type: String, default: "active" },
+  join_code: { type: String, index: true },
+});
+
+export const Classroom = mongoose.model("Classroom", classroomSchema);
+
+// CLASS MEMBERS
+const classMemberSchema = new mongoose.Schema({
+  classroom_id: { type: mongoose.Schema.Types.ObjectId, ref: "Classroom" },
+  student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  joined_at: { type: Date, default: Date.now },
+  status: { type: String, default: "active" },
+});
+
+classMemberSchema.index({ classroom_id: 1, student_id: 1 }, { unique: true });
+
+export const ClassMember = mongoose.model("ClassMember", classMemberSchema);
