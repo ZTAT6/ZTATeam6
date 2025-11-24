@@ -199,6 +199,9 @@ input[type="text"], input[type="email"], input[type="password"] {
 .status-badge.active { background:#e8fbf0; color:#18a05f; border:1px solid #b9e7cb; }
 .status-badge.inactive { background:#fff6e5; color:#c77d00; border:1px solid #f0d39b; }
 .status-badge.blocked { background:#feecec; color:#d93025; border:1px solid #f5b5b2; }
+.status-badge.http-ok { background:#e8fbf0; color:#18a05f; border:1px solid #b9e7cb; }
+.status-badge.http-warn { background:#fff6e5; color:#c77d00; border:1px solid #f0d39b; }
+.status-badge.http-error { background:#feecec; color:#d93025; border:1px solid #f5b5b2; }
 .data-table { display:grid; gap: 6px; }
 .data-table .row { display:grid; grid-template-columns: minmax(160px, 1.3fr) minmax(220px, 1.6fr) minmax(130px, 1fr) minmax(200px, 1.2fr) minmax(180px, 1.1fr); gap: 10px; align-items:center; padding: 12px 14px; border:1px solid #eef2ff; border-radius: 10px; }
 .data-table .row.head { background:#f7faff; border-color:#e5e7eb; font-weight:700; }

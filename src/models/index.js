@@ -72,6 +72,8 @@ const activityLogSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   action: String,
   target: String,
+  target_name: String,
+  resource: String,
   timestamp: { type: Date, default: Date.now },
   ip_address: String,
   device_info: String,

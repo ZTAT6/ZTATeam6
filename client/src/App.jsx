@@ -250,6 +250,20 @@ function TopBar() {
 
 function ActivityList({ items }) {
   const list = Array.isArray(items) ? items : []
+  function friendly(method, path) {
+    if (path.startsWith('/admin/users/teachers') && method==='GET') return 'Xem danh sách giáo viên'
+    if (path.startsWith('/admin/users/students') && method==='GET') return 'Xem danh sách học viên'
+    if (path.startsWith('/admin/users/') && method==='PATCH' && path.includes('/status')) return 'Đổi trạng thái người dùng'
+    if (path.startsWith('/admin/users/teacher') && method==='POST') return 'Tạo giáo viên'
+    if (path.startsWith('/admin/courses') && method==='GET') return 'Xem khoá học'
+    if (path.startsWith('/admin/courses') && method==='POST') return 'Tạo khoá học'
+    if (path.startsWith('/admin/classes') && method==='GET') return 'Xem lớp'
+    if (path.startsWith('/admin/classes') && method==='POST') return 'Tạo lớp'
+    if (path.startsWith('/admin/classes/') && method==='PATCH' && path.includes('/regenerate-code')) return 'Đổi mã lớp'
+    if (path.startsWith('/admin/enrollments') && method==='GET') return 'Xem ghi danh'
+    if (path.startsWith('/admin/activity') && method==='GET') return 'Xem hoạt động'
+    return `${method} ${path}`
+  }
   return (
     <ul className="activity-list">
       {list.map((it) => {
@@ -258,12 +272,19 @@ function ActivityList({ items }) {
         const status = it.status ? String(it.status) : ''
         const ip = it.ip_address || ''
         const device = it.device_info || ''
+        const [m,p] = String(it.action||'').split(' ')
+        const act = friendly(m||'', p||'')
+        const target = it.target_name || ''
+        const resource = it.resource || ''
+        const sNum = parseInt(status || '0', 10)
+        const sClass = isNaN(sNum) ? '' : (sNum >= 500 ? 'http-error' : (sNum >= 400 ? 'http-warn' : 'http-ok'))
         return (
           <li className="activity-item" key={`${it._id || it.timestamp || Math.random()}`}>
             <span className="time">{ts}</span>
-            <span className="action" style={{ fontWeight: 600 }}>{it.action}</span>
-            {it.target ? <span className="target">{` ${it.target}`}</span> : null}
-            {status ? <span style={{ marginLeft: 8 }} className={`status-badge`}>{status}</span> : null}
+            <span className="action" style={{ fontWeight: 600 }}>{act}</span>
+            {target ? <span className="target">{` ${target}`}</span> : null}
+            {status ? <span style={{ marginLeft: 8 }} className={`status-badge ${sClass}`}>{status}</span> : null}
+            {resource ? <span style={{ marginLeft: 8, color:'#6b7280', fontSize:12 }}>{resource}</span> : null}
             {user ? <span style={{ marginLeft: 12 }}>{user}</span> : null}
             {ip ? <span style={{ marginLeft: 12 }}>{ip}</span> : null}
             {device ? <span style={{ marginLeft: 12, color: '#666' }}>{device.slice(0, 40)}</span> : null}
@@ -569,6 +590,7 @@ function AdminPage() {
   const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [activity, setActivity] = useState([])
+  const [activitySearch, setActivitySearch] = useState('')
   const [activityFilter, setActivityFilter] = useState({ userId: '', status: '', limit: '50' })
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ username: '', email: '', full_name: '', password: '' })
@@ -629,6 +651,17 @@ function AdminPage() {
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
   }
+
+  const activityDisplay = React.useMemo(() => {
+    const q = (activitySearch || '').trim().toLowerCase()
+    if (!q) return activity
+    const arr = Array.isArray(activity) ? activity : []
+    return arr.filter(it => {
+      const u = typeof it.user_id === 'object' ? (it.user_id.full_name || it.user_id.username || it.user_id.email || '') : String(it.user_id||'')
+      const fields = [String(it.action||''), String(it.target_name||''), String(it.resource||''), String(it.status||''), String(it.ip_address||''), String(it.device_info||''), u]
+      return fields.some(v => v.toLowerCase().includes(q))
+    })
+  }, [activity, activitySearch])
 
   function validateTeacherForm(f) {
     const e = {}
@@ -1080,8 +1113,11 @@ function AdminPage() {
                 </div>
                 <button className="btn" type="submit">Lọc</button>
                 <button className="btn btn-sm" type="button" onClick={exportActivityCsv}>Xuất CSV</button>
+                <div className="field">
+                  <input type="text" placeholder="Tìm theo tên/hành động/IP/thiết bị" value={activitySearch} onChange={e=>setActivitySearch(e.target.value)} />
+                </div>
               </form>
-              <ActivityList items={activity} />
+              <ActivityList items={activityDisplay} />
             </div>
           </div>
         )}
