@@ -4,7 +4,7 @@ export async function connectDB() {
   // Use provided URI or default to local MongoDB host
   const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/";
   // Select database name via option to work even if URI lacks db segment
-  const dbName = process.env.MONGODB_DBNAME || "edulearn";
+  const dbName = process.env.MONGODB_DBNAME || "zero_trust";
 
   mongoose.set("strictQuery", true);
 
