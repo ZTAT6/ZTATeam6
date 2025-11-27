@@ -67,6 +67,18 @@ const sessionSchema = new mongoose.Schema({
   expires_at: Date,
 });
 
+// TRUSTED DEVICES
+const trustedDeviceSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  device_info: String,
+  ip_address: String,
+  first_seen: { type: Date, default: Date.now },
+  trusted_at: { type: Date, default: Date.now },
+  last_seen: { type: Date, default: Date.now },
+});
+
+trustedDeviceSchema.index({ user_id: 1, device_info: 1 });
+
 // ACTIVITY LOGS
 const activityLogSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -93,6 +105,7 @@ export const Material = mongoose.model("Material", materialSchema);
 export const Enrollment = mongoose.model("Enrollment", enrollmentSchema);
 export const Grade = mongoose.model("Grade", gradeSchema);
 export const Session = mongoose.model("Session", sessionSchema);
+export const TrustedDevice = mongoose.model("TrustedDevice", trustedDeviceSchema);
 export const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 export const FailedLogin = mongoose.model("FailedLogin", failedLoginSchema);
 

@@ -2,12 +2,28 @@ import express from "express"
 import { body, validationResult } from "express-validator"
 import mongoose from "mongoose"
 import { requireRole } from "../middlewares/auth.js"
-import { Course, Classroom } from "../models/index.js"
+import { Course, Classroom, TrustedDevice } from "../models/index.js"
 import { generateCode } from "../utils/verification.js"
 
 const router = express.Router()
 
 router.use(requireRole("teacher"))
+
+// Allow write operations only from trusted device or internal network
+async function ensureTrustedEdit(req, res, next) {
+  try {
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip
+    const device = req.headers["user-agent"] || "unknown"
+    const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip)
+    const trusted = await TrustedDevice.findOne({ user_id: req.user.id, device_info: device }).lean()
+    if (!isInternalIp && !trusted) {
+      return res.status(403).json({ error: "Edit requires trusted device" })
+    }
+    next()
+  } catch (err) {
+    return res.status(403).json({ error: "Edit restricted" })
+  }
+}
 
 router.get("/courses", async (req, res) => {
   try {
@@ -39,6 +55,7 @@ router.post(
     body("name").isString().isLength({ min: 1 }),
     body("course_id").isMongoId(),
   ],
+  ensureTrustedEdit,
   async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() })
@@ -76,6 +93,7 @@ router.patch(
     body("name").optional().isString().isLength({ min: 1 }),
     body("status").optional().isString().isIn(["active", "inactive", "blocked"]),
   ],
+  ensureTrustedEdit,
   async (req, res) => {
     const errors = validationResult(req)
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() })
@@ -96,7 +114,7 @@ router.patch(
   }
 )
 
-router.patch("/classes/:id/regenerate-code", async (req, res) => {
+router.patch("/classes/:id/regenerate-code", ensureTrustedEdit, async (req, res) => {
   const { id } = req.params
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" })
   try {

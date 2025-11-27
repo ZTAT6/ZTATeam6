@@ -1,7 +1,7 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { requireRole } from "../middlewares/auth.js";
-import { User, ActivityLog, Course, Enrollment, Classroom } from "../models/index.js";
+import { User, ActivityLog, Course, Enrollment, Classroom, TrustedDevice } from "../models/index.js";
 import { generateCode } from "../utils/verification.js";
 import { hashPassword } from "../utils/password.js";
 import mongoose from "mongoose";
@@ -10,6 +10,22 @@ const router = express.Router();
 
 // Only admin can access these routes
 router.use(requireRole("admin"));
+
+// Enforce admin access only from trusted device or internal network
+router.use(async (req, res, next) => {
+  try {
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const device = req.headers["user-agent"] || "unknown";
+    const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
+    const trusted = await TrustedDevice.findOne({ user_id: req.user.id, device_info: device }).lean();
+    if (!isInternalIp && !trusted) {
+      return res.status(403).json({ error: "Admin access requires trusted device or internal network" });
+    }
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Admin access restricted" });
+  }
+});
 
 // Create a teacher account (admin-only)
 router.post(

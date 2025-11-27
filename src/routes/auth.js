@@ -3,7 +3,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import { body, validationResult } from "express-validator";
-import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge, PasswordReset, Enrollment, Course } from "../models/index.js";
+import { User, Session, FailedLogin, EmailVerification, SignupVerification, LoginChallenge, PasswordReset, Enrollment, Course, TrustedDevice } from "../models/index.js";
 import { hashPassword, comparePassword } from "../utils/password.js";
 import { generateCode, sendVerificationEmail, sendLoginConfirmationEmail, sendVerificationSMS } from "../utils/verification.js";
 
@@ -186,11 +186,14 @@ router.post(
         return res.status(403).json({ error: "Account not active. Awaiting admin approval." });
       }
 
-      // If device/IP differs from latest session, require email confirmation (LoginChallenge)
+      // If device/IP differs from latest session or admin device not trusted, require email confirmation (LoginChallenge)
       const latestSess = await Session.findOne({ user_id: user._id }).sort({ created_at: -1 }).lean();
       const ipChanged = Boolean(latestSess && latestSess.ip_address && latestSess.ip_address !== ip);
       const deviceChanged = Boolean(latestSess && latestSess.device_info && latestSess.device_info !== device);
-      if (latestSess && (ipChanged || deviceChanged)) {
+      const trusted = await TrustedDevice.findOne({ user_id: user._id, device_info: device }).lean();
+      const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
+      const adminNeedsTrust = (user.role === "admin" && !trusted && !isInternalIp);
+      if ((latestSess && (ipChanged || deviceChanged)) || adminNeedsTrust) {
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
           user_id: user._id,
@@ -268,6 +271,18 @@ router.get("/confirm-login", async (req, res) => {
       created_at: new Date(),
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
+
+    // Mark device as trusted on approval
+    try {
+      const td = await TrustedDevice.findOne({ user_id: user._id, device_info: challenge.device_info });
+      if (td) {
+        td.ip_address = challenge.ip_address;
+        td.last_seen = new Date();
+        await td.save();
+      } else {
+        await TrustedDevice.create({ user_id: user._id, device_info: challenge.device_info, ip_address: challenge.ip_address, trusted_at: new Date(), last_seen: new Date() });
+      }
+    } catch (_) {}
 
     challenge.approved_at = new Date();
     challenge.session_token = tokenJwt;
