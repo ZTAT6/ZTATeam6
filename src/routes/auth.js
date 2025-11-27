@@ -193,6 +193,8 @@ router.post(
       const trusted = await TrustedDevice.findOne({ user_id: user._id, device_info: device }).lean();
       const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
       const adminNeedsTrust = (user.role === "admin" && !trusted && !isInternalIp);
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const failsRecent = await FailedLogin.countDocuments({ username, timestamp: { $gte: oneHourAgo } });
       if ((latestSess && (ipChanged || deviceChanged)) || adminNeedsTrust) {
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
@@ -210,6 +212,19 @@ router.post(
       }
 
       // Immediate login when no risk detected
+      if (failsRecent >= 3 && !isInternalIp) {
+        const tokenChallenge = crypto.randomBytes(32).toString("hex");
+        const challenge = await LoginChallenge.create({
+          user_id: user._id,
+          token: tokenChallenge,
+          ip_address: ip,
+          device_info: device,
+          created_at: new Date(),
+          expires_at: new Date(Date.now() + 10 * 60 * 1000),
+        });
+        try { await sendLoginConfirmationEmail({ to: user.email, token: tokenChallenge }); } catch (_) {}
+        return res.status(202).json({ message: "Confirm login via email", challengeId: challenge._id.toString() });
+      }
       user.last_login = new Date();
       await user.save();
 

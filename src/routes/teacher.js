@@ -17,8 +17,10 @@ async function ensureTrustedEdit(req, res, next) {
     const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip)
     const trusted = await TrustedDevice.findOne({ user_id: req.user.id, device_info: device }).lean()
     if (!isInternalIp && !trusted) {
+      req.policyInfo = "teacher_edit_requires_trusted"
       return res.status(403).json({ error: "Edit requires trusted device" })
     }
+    req.policyInfo = "teacher_edit_requires_trusted"
     next()
   } catch (err) {
     return res.status(403).json({ error: "Edit restricted" })

@@ -86,6 +86,7 @@ const activityLogSchema = new mongoose.Schema({
   target: String,
   target_name: String,
   resource: String,
+  policy: String,
   timestamp: { type: Date, default: Date.now },
   ip_address: String,
   device_info: String,

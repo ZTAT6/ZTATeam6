@@ -13,6 +13,7 @@ export async function activityLogger(req, res, next) {
       const targetId = req.params?.id || "";
       let resource = "";
       let targetName = "";
+      const policy = req.policyInfo || "";
       const isId = typeof targetId === "string" && targetId.length === 24;
       if (url.startsWith("/admin/users") && isId) {
         resource = "user";
@@ -30,6 +31,7 @@ export async function activityLogger(req, res, next) {
         target: targetId,
         target_name: targetName,
         resource,
+        policy,
         timestamp: new Date(),
         ip_address: ip,
         device_info: device,

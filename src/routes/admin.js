@@ -1,7 +1,7 @@
 import express from "express";
 import { body, validationResult } from "express-validator";
 import { requireRole } from "../middlewares/auth.js";
-import { User, ActivityLog, Course, Enrollment, Classroom, TrustedDevice } from "../models/index.js";
+import { User, ActivityLog, Course, Enrollment, Classroom, TrustedDevice, Session } from "../models/index.js";
 import { generateCode } from "../utils/verification.js";
 import { hashPassword } from "../utils/password.js";
 import mongoose from "mongoose";
@@ -19,8 +19,10 @@ router.use(async (req, res, next) => {
     const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
     const trusted = await TrustedDevice.findOne({ user_id: req.user.id, device_info: device }).lean();
     if (!isInternalIp && !trusted) {
+      req.policyInfo = "admin_trusted_or_internal";
       return res.status(403).json({ error: "Admin access requires trusted device or internal network" });
     }
+    req.policyInfo = "admin_trusted_or_internal";
     next();
   } catch (err) {
     return res.status(403).json({ error: "Admin access restricted" });
@@ -109,6 +111,7 @@ router.patch(
       }
       user.status = status;
       await user.save();
+      try { await Session.deleteMany({ user_id: user._id }); } catch (_) {}
       return res.status(200).json({ id: user._id, status: user.status });
     } catch (err) {
       return res.status(500).json({ error: "Failed to update status" });

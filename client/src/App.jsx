@@ -300,6 +300,7 @@ function TeacherPage() {
   const [myCourses, setMyCourses] = useState([])
   const [myClasses, setMyClasses] = useState([])
   const [profile, setProfile] = useState(null)
+  const [trusted, setTrusted] = useState(true)
   const [creatingClass, setCreatingClass] = useState(false)
   const [classForm, setClassForm] = useState({ name: '', course_id: '' })
   const [classErrors, setClassErrors] = useState({})
@@ -310,6 +311,8 @@ function TeacherPage() {
       .then(r => r.json()).then(setItems).catch(() => {})
     fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setProfile).catch(() => {})
+    fetch('/me/trust-status', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r=>r.json()).then(d=>setTrusted(!!d?.trusted || !!d?.internalIp)).catch(()=>{})
     fetch('/teacher/courses', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setMyCourses).catch(() => {})
     fetch('/teacher/classes', { headers: { Authorization: `Bearer ${token}` } })
@@ -425,7 +428,7 @@ function TeacherPage() {
               </select>
               {classErrors.course_id && <div className="form-error">{classErrors.course_id}</div>}
             </div>
-            <button className="btn" disabled={creatingClass} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
+            <button className="btn" disabled={creatingClass || !trusted} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
           </form>
         </div>
 
@@ -443,10 +446,10 @@ function TeacherPage() {
                 <div className="meta">Tạo: {new Date(cl.created_at).toLocaleString()}</div>
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
                   <button className="btn" type="button" onClick={()=>onCopyJoinCode(cl.join_code)}>Copy mã</button>
-                  <button className="btn" type="button" onClick={()=>onRegenerateClassCode(cl._id)}>Đổi mã</button>
+                  <button className="btn" disabled={!trusted} type="button" onClick={()=>onRegenerateClassCode(cl._id)}>Đổi mã</button>
                 </div>
                 <div style={{ marginTop: 8 }}>
-                  <select defaultValue={cl.status} onChange={(e)=>onUpdateClassStatus(cl._id, e.target.value)}>
+                  <select defaultValue={cl.status} disabled={!trusted} onChange={(e)=>onUpdateClassStatus(cl._id, e.target.value)}>
                     <option value="active">active</option>
                     <option value="inactive">inactive</option>
                     <option value="blocked">blocked</option>
@@ -457,6 +460,12 @@ function TeacherPage() {
           </div>
         </div>
       </section>
+
+      {!trusted && (
+        <div className="panel" style={{ marginTop: 12 }}>
+          <div className="form-error">Thiết bị chưa tin cậy — đang ở chế độ chỉ xem. Vui lòng xác nhận đăng nhập qua email để bật quyền sửa.</div>
+        </div>
+      )}
 
       <div className="activity-section" style={{ marginTop: 18 }}>
         <div className="section-head"><h2>Hoạt động gần đây</h2></div>
