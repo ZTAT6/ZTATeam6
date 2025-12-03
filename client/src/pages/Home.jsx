@@ -14,6 +14,20 @@ export default function Home() {
     return () => document.body.classList.remove('home')
   }, [])
 
+  function onNavClick(e, item) {
+    e.preventDefault()
+    if (item.key === 'menu_fee' || item.key === 'menu_exam') {
+      const token = localStorage.getItem('token')
+      const role = localStorage.getItem('role')
+      const loggedIn = !!token && !!role && token.includes('.')
+      if (!loggedIn) {
+        alert(lang==='vi' ? 'Vui lòng đăng nhập trước' : 'Please login first')
+        return
+      }
+    }
+    if (item.to !== '#') nav(item.to)
+  }
+
   return (
     <div>
       {/* Header */}
@@ -41,9 +55,9 @@ export default function Home() {
           { key: 'menu_teachers', to: '#' },
           { key: 'menu_fee', to: '#' },
           { key: 'menu_exam', to: '#' },
-          { key: 'menu_support', to: '#' },
+          { key: 'menu_support', to: '/support' },
         ].map((item,i)=>(
-          <a key={i} href="#" onClick={(e)=>{e.preventDefault(); if (item.to !== '#') nav(item.to)}}>{t(item.key)}</a>
+          <a key={i} href="#" onClick={(e)=>onNavClick(e,item)}>{t(item.key)}</a>
         ))}
       </nav>
 
@@ -105,7 +119,7 @@ export default function Home() {
         {chatOpen && (
           <div style={{ marginTop: 8 }}>
             <input style={{ width: 220, height: 34, border:'1px solid #e5e7eb', borderRadius: 8, padding: '0 10px' }} placeholder={lang==='vi'?'Nhập tin nhắn...':'Type a message...'} />
-            <button style={{ marginLeft: 8, height: 34 }} onClick={()=>alert(lang==='vi'?'Đã gửi!':'Sent!')}>{lang==='vi'?'Gửi':'Send'}</button>
+            <button style={{ marginLeft: 8, height: 34, display:'inline-flex', alignItems:'center', justifyContent:'center' }} onClick={()=>alert(lang==='vi'?'Đã gửi!':'Sent!')}>{lang==='vi'?'Gửi':'Send'}</button>
           </div>
         )}
       </div>

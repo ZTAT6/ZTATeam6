@@ -103,7 +103,7 @@ input[type="text"], input[type="email"], input[type="password"] {
 }
 .about-hero h1 { margin: 0 0 10px; font-size: 30px; }
 .about-hero p { margin: 6px 0; opacity: .95; }
-.feature-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 12px; margin-top: 14px; }
+.feature-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 14px; justify-items: stretch; }
 .feature-item { background:#fff; border:1px solid #e5e7eb; border-radius: 14px; padding: 14px; display:flex; gap:10px; align-items:flex-start; }
 .feature-item .icon { width: 28px; height: 28px; border-radius: 999px; background: linear-gradient(135deg, #f9b233, #ffd27a); flex: 0 0 28px; }
 
