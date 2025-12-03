@@ -162,11 +162,11 @@ function LoginPage() {
                 <input name="email" type="email" placeholder={t('emailAddress')} required />
               </div>
               <div className="field">
-                <input name="password" type="password" placeholder={t('password')} value={signupPassword} onChange={(e)=>setSignupPassword(e.target.value)} required />
-                <PasswordStrength password={signupPassword} />
+                <input name="username" type="text" placeholder={t('usernameOptional')} />
               </div>
               <div className="field">
-                <input name="username" type="text" placeholder={t('usernameOptional')} />
+                <input name="password" type="password" placeholder={t('password')} value={signupPassword} onChange={(e)=>setSignupPassword(e.target.value)} required />
+                <PasswordStrength password={signupPassword} />
               </div>
               <div className="field">
                 <input name="confirm_password" type="password" placeholder={t('confirmPassword')} value={signupConfirm} onChange={(e)=>setSignupConfirm(e.target.value)} required />
