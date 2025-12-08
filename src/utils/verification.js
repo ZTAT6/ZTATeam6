@@ -52,8 +52,23 @@ export async function sendVerificationEmail({ to, code }) {
   const from = process.env.EMAIL_FROM || "no-reply@example.com";
 
   if (!host || !user || !pass) {
-    console.log(`[dev] Email verification code for ${to}: ${code}`);
-    return { dev: true };
+    const account = await nodemailer.createTestAccount();
+    const transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: { user: account.user, pass: account.pass },
+    });
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: "Your verification code",
+      text: `Your verification code is: ${code}`,
+      html: `<p>Your verification code is: <strong>${code}</strong></p>`,
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    console.log(`[dev] Email verification preview: ${previewUrl}`);
+    return { messageId: info.messageId, dev: true, previewUrl };
   }
 
   const transporter = nodemailer.createTransport({
@@ -83,8 +98,24 @@ export async function sendLoginConfirmationEmail({ to, token }) {
   const link = `${process.env.APP_BASE_URL || 'http://localhost:4000'}/auth/confirm-login?token=${encodeURIComponent(token)}`;
 
   if (!host || !user || !pass) {
-    console.log(`[dev] Login confirmation link for ${to}: ${link}`);
-    return { dev: true };
+    const account = await nodemailer.createTestAccount();
+    const transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: { user: account.user, pass: account.pass },
+    });
+    const info = await transporter.sendMail({
+      from,
+      to,
+      subject: "Confirm your login",
+      text: `Confirm your login by clicking: ${link}`,
+      html: `<p>Confirm your login by clicking the button below:</p>
+             <p><a href="${link}" style="display:inline-block;padding:10px 16px;background:#0e6de6;color:#fff;border-radius:8px;text-decoration:none">Confirm Login</a></p>`,
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    console.log(`[dev] Login confirmation preview: ${previewUrl}`);
+    return { messageId: info.messageId, dev: true, previewUrl };
   }
 
   const transporter = nodemailer.createTransport({
