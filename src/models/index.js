@@ -14,8 +14,6 @@ const userSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now },
 });
 
-userSchema.index({ username: 1 }, { unique: true });
-userSchema.index({ email: 1 }, { unique: true });
 
 // COURSES
 const courseSchema = new mongoose.Schema({

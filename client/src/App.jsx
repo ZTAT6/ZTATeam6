@@ -214,7 +214,7 @@ function VerifyPage() {
 
   return (
     <div className="page">
-      <div className="wrapper" style={{ maxWidth: 600 }}>
+      <div className="wrapper" style={{ maxWidth: 500, margin: '2rem auto' }}>
         <h2 style={{ textAlign: 'center', marginTop: 0 }}>{t('verifyEmailTitle')}</h2>
         <form onSubmit={onConfirm}>
           <div className="field">

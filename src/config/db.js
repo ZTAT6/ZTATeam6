@@ -12,19 +12,23 @@ export async function connectDB() {
   try {
     await mongoose.connect(uri, {
       dbName,
-      autoIndex: true,
+      autoIndex: process.env.MONGODB_AUTOINDEX ? process.env.MONGODB_AUTOINDEX === "true" : true,
       serverSelectionTimeoutMS: 5000,
     });
     const safeUri = uri.replace(/\/\/.*@/, "//***@");
     console.log(`MongoDB connected: ${safeUri} (db: ${dbName})`);
-    const courseCollection = mongoose.connection.collection("courses");
-    const indexes = await courseCollection.indexes();
-    const codeIndex = indexes.find((idx) => idx.name === "code_1");
-    if (codeIndex) {
-      await courseCollection.dropIndex("code_1");
-      console.log("Dropped code_1 index from courses (will recreate safely)");
-    }
-    await Course.syncIndexes();
+    try {
+      const courseCollection = mongoose.connection.collection("courses");
+      const indexes = await courseCollection.indexes();
+      const codeIndex = indexes.find((idx) => idx.name === "code_1");
+      if (codeIndex) {
+        await courseCollection.dropIndex("code_1");
+        console.log("Dropped code_1 index from courses (will recreate safely)");
+      }
+    } catch (_) {}
+    try {
+      await Course.syncIndexes();
+    } catch (_) {}
   } catch (err) {
     console.error("MongoDB connection error:", err.message);
     throw err;
