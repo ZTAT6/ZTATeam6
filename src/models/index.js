@@ -19,6 +19,7 @@ userSchema.index({ email: 1 }, { unique: true });
 
 // COURSES
 const courseSchema = new mongoose.Schema({
+  code: { type: String },
   title: String,
   description: String,
   lecturer_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -26,6 +27,8 @@ const courseSchema = new mongoose.Schema({
   updated_at: Date,
   status: { type: String, default: "active" },
 });
+
+courseSchema.index({ code: 1 }, { unique: true, partialFilterExpression: { code: { $type: "string" } } });
 
 // MATERIALS
 const materialSchema = new mongoose.Schema({
@@ -64,11 +67,26 @@ const sessionSchema = new mongoose.Schema({
   expires_at: Date,
 });
 
+// TRUSTED DEVICES
+const trustedDeviceSchema = new mongoose.Schema({
+  user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  device_info: String,
+  ip_address: String,
+  first_seen: { type: Date, default: Date.now },
+  trusted_at: { type: Date, default: Date.now },
+  last_seen: { type: Date, default: Date.now },
+});
+
+trustedDeviceSchema.index({ user_id: 1, device_info: 1 });
+
 // ACTIVITY LOGS
 const activityLogSchema = new mongoose.Schema({
   user_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   action: String,
   target: String,
+  target_name: String,
+  resource: String,
+  policy: String,
   timestamp: { type: Date, default: Date.now },
   ip_address: String,
   device_info: String,
@@ -88,6 +106,7 @@ export const Material = mongoose.model("Material", materialSchema);
 export const Enrollment = mongoose.model("Enrollment", enrollmentSchema);
 export const Grade = mongoose.model("Grade", gradeSchema);
 export const Session = mongoose.model("Session", sessionSchema);
+export const TrustedDevice = mongoose.model("TrustedDevice", trustedDeviceSchema);
 export const ActivityLog = mongoose.model("ActivityLog", activityLogSchema);
 export const FailedLogin = mongoose.model("FailedLogin", failedLoginSchema);
 
@@ -161,3 +180,28 @@ const passwordResetSchema = new mongoose.Schema({
 passwordResetSchema.index({ user_id: 1, created_at: -1 });
 
 export const PasswordReset = mongoose.model("PasswordReset", passwordResetSchema);
+
+// CLASSES
+const classroomSchema = new mongoose.Schema({
+  name: String,
+  course_id: { type: mongoose.Schema.Types.ObjectId, ref: "Course" },
+  teacher_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  created_at: { type: Date, default: Date.now },
+  updated_at: Date,
+  status: { type: String, default: "active" },
+  join_code: { type: String, index: true },
+});
+
+export const Classroom = mongoose.model("Classroom", classroomSchema);
+
+// CLASS MEMBERS
+const classMemberSchema = new mongoose.Schema({
+  classroom_id: { type: mongoose.Schema.Types.ObjectId, ref: "Classroom" },
+  student_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  joined_at: { type: Date, default: Date.now },
+  status: { type: String, default: "active" },
+});
+
+classMemberSchema.index({ classroom_id: 1, student_id: 1 }, { unique: true });
+
+export const ClassMember = mongoose.model("ClassMember", classMemberSchema);

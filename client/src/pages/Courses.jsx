@@ -33,7 +33,7 @@ export default function Courses() {
       try {
         const customOnly = next.filter(c => !c.key)
         localStorage.setItem('custom_courses', JSON.stringify(customOnly))
-      } catch {}
+      } catch { void 0 }
       return next
     })
     setNewTitle('')
