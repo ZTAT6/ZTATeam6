@@ -188,14 +188,16 @@ router.post(
 
       // If device/IP differs from latest session or admin device not trusted, require email confirmation (LoginChallenge)
       const latestSess = await Session.findOne({ user_id: user._id }).sort({ created_at: -1 }).lean();
-      const ipChanged = Boolean(latestSess && latestSess.ip_address && latestSess.ip_address !== ip);
-      const deviceChanged = Boolean(latestSess && latestSess.device_info && latestSess.device_info !== device);
+      const ipChanged = Boolean(latestSess && (latestSess.ip_address && latestSess.ip_address !== ip));
+      const deviceChanged = Boolean(latestSess && (latestSess.device_info && latestSess.device_info !== device));
       const trusted = await TrustedDevice.findOne({ user_id: user._id, device_info: device }).lean();
       const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
-      const adminNeedsTrust = (user.role === "admin" && !trusted && !isInternalIp);
+      const isAdmin = user.role === "admin";
+      const roleNeedsTrust = ((user.role === "admin" || user.role === "teacher") && !trusted && !isInternalIp);
+      const needsChallenge = roleNeedsTrust || ((latestSess && (ipChanged || deviceChanged)) && !trusted && isAdmin);
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const failsRecent = await FailedLogin.countDocuments({ username, timestamp: { $gte: oneHourAgo } });
-      if ((latestSess && (ipChanged || deviceChanged)) || adminNeedsTrust) {
+      if (needsChallenge) {
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
           user_id: user._id,
@@ -212,7 +214,7 @@ router.post(
       }
 
       // Immediate login when no risk detected
-      if (failsRecent >= 3 && !isInternalIp) {
+      if (!trusted && failsRecent >= 3 && !isInternalIp) {
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
           user_id: user._id,
