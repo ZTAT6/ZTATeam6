@@ -113,10 +113,10 @@ ELK Stack (Optional)	Centralized logging (Elasticsearch, Logstash, Kibana)
 
 ---
 
-## 🔢 OTP Verification (Email/SMS)
+## 🔢 OTP Verification (Email)
 
-- Signup now supports delivering OTP via `email` or `sms`.
-- Forgot password flow uses OTP via `email` or `sms` before resetting.
+- Signup now supports delivering OTP via `email`.
+- Forgot password flow uses OTP via `email` before resetting.
 
 ### Environment Variables
 
