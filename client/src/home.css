@@ -33,7 +33,11 @@ body.home {
 .hm-logo {
   width: 42px; height: 42px; border-radius: 8px;
   background: linear-gradient(135deg, var(--brand-primary), #0e6de6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
+.hm-logo svg { width: 26px; height: 26px; stroke: #fff; fill: none; stroke-width: 1.6; }
 .hm-title {
   font-weight: 800; font-size: 22px; color: var(--brand-primary);
 }
@@ -154,6 +158,25 @@ body.home {
 .hm-social { margin-top: 12px; display: flex; align-items: center; gap: 8px; color: #374151; justify-content: center; width: fit-content; margin-left: auto; margin-right: auto; }
 .hm-social .count { background: #fff; border: 1px solid #e5e7eb; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
 
+.hm-footer {
+  width: 90%;
+  max-width: 1000px;
+  margin: 16px auto 24px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--brand-primary), #0e6de6);
+  color: #fff;
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+.hm-footer .ft-brand { display:flex; align-items:flex-end; gap: 8px; }
+.hm-footer .ft-name { font-size: 24px; font-weight: 900; letter-spacing: .3px; }
+.hm-footer .ft-info .line { margin-top: 6px; opacity: .96; }
+.hm-footer .ft-social { display:flex; gap: 10px; margin-top: 4px; }
+.hm-footer .ft-social .icon { width: 32px; height: 32px; border-radius: 999px; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.25); }
+.hm-footer .ft-social .icon svg { width: 18px; height: 18px; fill: #fff; }
+
 @media (max-width: 960px) {
   .hm-container { grid-template-columns: 1fr; margin-left: 0; margin-right: 0; width: 100vw; }
   .hm-banners { grid-template-columns: 1fr; }
@@ -161,4 +184,5 @@ body.home {
   .hm-news { position: static; width: auto; height: auto; border-left: none; box-shadow: none; }
   .hm-search { justify-content: flex-start; }
   .hm-search input { flex: 1 1 auto; width: auto; max-width: none; }
+  .hm-footer { grid-template-columns: 1fr; }
 }

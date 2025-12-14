@@ -17,10 +17,19 @@ dotenv.config()
 
 async function main() {
   const includeAdmin = process.argv.includes('--include-admin')
+  const roleArg = (process.argv.find(a => a.startsWith('--role=')) || '').split('=')[1]
+  const onlyTeacher = process.argv.includes('--only-teacher')
 
   await connectDB()
 
-  const userFilter = includeAdmin ? {} : { role: { $ne: 'admin' } }
+  let userFilter
+  if (roleArg) {
+    userFilter = { role: roleArg }
+  } else if (onlyTeacher) {
+    userFilter = { role: 'teacher' }
+  } else {
+    userFilter = includeAdmin ? {} : { role: { $ne: 'admin' } }
+  }
   const users = await User.find(userFilter).select('_id username role')
   const ids = users.map(u => u._id)
 

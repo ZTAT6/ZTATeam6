@@ -62,34 +62,6 @@ const messages = {
     add_course_add_btn: 'Thêm',
     add_course_added: 'Đã thêm khóa học!',
     add_course_invalid: 'Vui lòng nhập tên khóa học hợp lệ',
-    // Fee
-    fee_title: 'Học phí và gói dịch vụ',
-    fee_desc: 'Chọn gói phù hợp với nhu cầu học tập của bạn.',
-    fee_plan_basic: 'Cơ bản',
-    fee_plan_premium: 'Nâng cao',
-    fee_plan_pro: 'Chuyên nghiệp',
-    fee_price_basic: '199.000đ/tháng',
-    fee_price_premium: '399.000đ/tháng',
-    fee_price_pro: '699.000đ/tháng',
-    fee_enroll: 'Đăng ký ngay',
-    fee_methods_title: 'Phương thức thanh toán',
-    fee_methods_cards: 'Thẻ nội địa/ quốc tế (Visa/MasterCard)',
-    fee_methods_bank: 'Chuyển khoản ngân hàng',
-    fee_methods_momo: 'Ví MoMo/ZaloPay',
-    fee_billing_note: 'Lưu ý: Gói học tự động gia hạn. Bạn có thể hủy bất kỳ lúc nào.',
-    // Support
-    support_title: 'Hỗ trợ học viên',
-    support_desc: 'Chúng tôi luôn sẵn sàng hỗ trợ bạn 24/7.',
-    support_contact_title: 'Liên hệ hỗ trợ',
-    support_submit: 'Gửi yêu cầu',
-    support_success: 'Yêu cầu đã được gửi! Chúng tôi sẽ phản hồi sớm.',
-    support_faq_title: 'Câu hỏi thường gặp',
-    support_faq_1_q: 'Làm sao để đổi mật khẩu?',
-    support_faq_1_a: 'Vào trang Đăng nhập → Quên mật khẩu, làm theo hướng dẫn.',
-    support_faq_2_q: 'Tôi bị lỗi thanh toán, xử lý thế nào?',
-    support_faq_2_a: 'Kiểm tra hạn mức thẻ/ ví, thử lại; nếu vẫn lỗi hãy liên hệ hỗ trợ.',
-    support_faq_3_q: 'Hủy gia hạn tự động có mất dữ liệu không?',
-    support_faq_3_a: 'Không. Bạn vẫn giữ tiến trình học cho đến khi gói hết hạn.',
   },
   en: {
     brand: 'EduLearn Pro',
@@ -152,34 +124,6 @@ const messages = {
     add_course_add_btn: 'Add',
     add_course_added: 'Course added!',
     add_course_invalid: 'Please enter a valid course name',
-    // Fee
-    fee_title: 'Tuition & Plans',
-    fee_desc: 'Choose a plan that fits your learning needs.',
-    fee_plan_basic: 'Basic',
-    fee_plan_premium: 'Premium',
-    fee_plan_pro: 'Pro',
-    fee_price_basic: '$8/mo',
-    fee_price_premium: '$16/mo',
-    fee_price_pro: '$29/mo',
-    fee_enroll: 'Enroll now',
-    fee_methods_title: 'Payment methods',
-    fee_methods_cards: 'Domestic/International cards (Visa/MasterCard)',
-    fee_methods_bank: 'Bank transfer',
-    fee_methods_momo: 'E-wallet (MoMo/ZaloPay)',
-    fee_billing_note: 'Note: Plans auto‑renew. You can cancel anytime.',
-    // Support
-    support_title: 'Learner Support',
-    support_desc: 'We are ready to help you 24/7.',
-    support_contact_title: 'Contact support',
-    support_submit: 'Submit request',
-    support_success: 'Request sent! We will get back shortly.',
-    support_faq_title: 'Frequently Asked Questions',
-    support_faq_1_q: 'How do I change my password?',
-    support_faq_1_a: 'Go to Login → Forgot password and follow the steps.',
-    support_faq_2_q: 'Payment failed — what should I do?',
-    support_faq_2_a: 'Check card/e‑wallet limits and retry; if it persists, contact support.',
-    support_faq_3_q: 'Does canceling auto‑renew delete my data?',
-    support_faq_3_a: 'No. Your progress remains until your plan expires.',
   }
 }
 
@@ -195,7 +139,7 @@ export function I18nProvider({ children }) {
     const table = messages[lang] || messages.vi
     return table[key] ?? key
   }, [lang])
-  const onSet = React.useCallback((l) => { setLang(l); try { localStorage.setItem('lang', l) } catch { void 0 } }, [])
+  const onSet = React.useCallback((l) => { setLang(l); try { localStorage.setItem('lang', l) } catch {} }, [])
   return (
     <I18nContext.Provider value={{ lang, t, setLang: onSet }}>
       {children}
