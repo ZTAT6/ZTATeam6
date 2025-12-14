@@ -14,6 +14,8 @@ const loginLimiter = rateLimit({ windowMs: 60 * 1000, max: 10 });
 const registerLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
 const forgotLimiter = rateLimit({ windowMs: 60 * 1000, max: 5 });
 
+
+
 router.post(
   "/register",
   registerLimiter,
@@ -31,7 +33,7 @@ router.post(
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
-      // Zero-trust rule: public registration only allows 'student'
+      // Zero Trust: public registration only allows 'student' role
       const role = "student";
       let { username, password, email, full_name, phone } = req.body;
       let channel = req.body.channel || (email ? "email" : "sms");
@@ -50,7 +52,7 @@ router.post(
         username = email || phone;
       }
 
-      // Prevent duplicates if already a verified user exists
+      // Prevent duplicates if already a verified user exists (identity must be unique)
       const uniqOr = [];
       if (username) uniqOr.push({ username });
       if (email) uniqOr.push({ email });
@@ -163,13 +165,12 @@ router.post(
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
-    const { username, password } = req.body;
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
+    const { username, password } = req.body;
     const device = req.headers["user-agent"] || "unknown";
 
     try {
-      // allow login using username or email
+      // Authentication: allow login using username or email
       const user = await User.findOne({ $or: [{ username }, { email: username }] });
       if (!user) {
         await FailedLogin.create({ username, ip_address: ip });
@@ -186,7 +187,7 @@ router.post(
         return res.status(403).json({ error: "Account not active. Awaiting admin approval." });
       }
 
-      // If device/IP differs from latest session or admin device not trusted, require email confirmation (LoginChallenge)
+      // Risk-based control: if device/IP differs or admin device not trusted, require email confirmation (LoginChallenge)
       const latestSess = await Session.findOne({ user_id: user._id }).sort({ created_at: -1 }).lean();
       const ipChanged = Boolean(latestSess && latestSess.ip_address && latestSess.ip_address !== ip);
       const deviceChanged = Boolean(latestSess && latestSess.device_info && latestSess.device_info !== device);
@@ -211,7 +212,7 @@ router.post(
         return res.status(202).json({ message: "Confirm login via email", challengeId: challenge._id.toString() });
       }
 
-      // Immediate login when no risk detected
+      // Rate-limit heuristic: high recent failures trigger email confirmation even without device change
       if (failsRecent >= 3 && !isInternalIp) {
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
@@ -231,6 +232,7 @@ router.post(
       const payload = { sub: user._id.toString(), role: user.role };
       const token = jwt.sign(payload, process.env.JWT_SECRET || "dev_secret", { expiresIn: "7d" });
 
+      // Continuous monitoring: record session with IP and device for future trust decisions
       await Session.create({
         user_id: user._id,
         token,

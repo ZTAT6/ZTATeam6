@@ -43,6 +43,7 @@ function decodeRoleFromToken(token) {
 
 function Protected({ allow, children }) {
   const { token, role } = getAuth()
+  // Frontend guard: require authentication and enforce allowed roles before rendering
   if (!token) return <Navigate to="/" replace />
   if (allow && !allow.includes(role)) return <Navigate to={`/${role || 'dashboard'}`} replace />
   return children
@@ -73,6 +74,7 @@ function LoginPage() {
     })()
     return () => { active = false }
   }, [])
+  useEffect(() => {}, [])
   async function onLogin(e) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -154,6 +156,7 @@ function LoginPage() {
               <div className="field">
                 <input name="password" type="password" placeholder={t('password')} required />
               </div>
+              
               <div className="actions"><a className="link" href="#" onClick={(e)=>{e.preventDefault(); nav('/forgot')}}>{t('forgotPasswordQ')}</a></div>
               <button className="btn" type="submit">{t('login')}</button>
             </form>
@@ -171,6 +174,7 @@ function LoginPage() {
               <div className="field">
                 <input name="confirm_password" type="password" placeholder={t('confirmPassword')} value={signupConfirm} onChange={(e)=>setSignupConfirm(e.target.value)} required />
               </div>
+              <div className="field"></div>
               <button className="btn" type="submit">{t('signup')}</button>
             </form>
           </div>

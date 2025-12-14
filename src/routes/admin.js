@@ -8,10 +8,10 @@ import mongoose from "mongoose";
 
 const router = express.Router();
 
-// Only admin can access these routes
+// Zero Trust: only admin can access these routes
 router.use(requireRole("admin"));
 
-// Enforce admin access only from trusted device or internal network
+// Context-aware policy: require trusted device or internal IP for admin operations
 router.use(async (req, res, next) => {
   try {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;

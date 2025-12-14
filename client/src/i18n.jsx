@@ -10,6 +10,7 @@ const messages = {
     forgotPasswordQ: 'Quên mật khẩu?',
     emailAddress: 'Địa chỉ email',
     confirmPassword: 'Xác nhận mật khẩu',
+    
     usernameOptional: 'Tên đăng nhập (tuỳ chọn; mặc định là email)',
     verifyEmailTitle: 'Xác thực Email',
     resendCode: 'Gửi lại mã',
@@ -72,6 +73,7 @@ const messages = {
     forgotPasswordQ: 'Forgot password?',
     emailAddress: 'Email address',
     confirmPassword: 'Confirm password',
+    
     usernameOptional: 'Username (optional; defaults to email)',
     verifyEmailTitle: 'Verify Email',
     resendCode: 'Resend Code',

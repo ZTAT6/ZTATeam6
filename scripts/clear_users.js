@@ -16,11 +16,25 @@ import {
 dotenv.config()
 
 async function main() {
-  const includeAdmin = process.argv.includes('--include-admin')
+  const args = process.argv.slice(2)
+  const includeAdmin = args.includes('--include-admin')
+  const getVal = (flag) => {
+    const i = args.indexOf(flag)
+    if (i >= 0 && i + 1 < args.length) return args[i + 1]
+    const kv = args.find(a => a.startsWith(flag + '='))
+    return kv ? kv.split('=')[1] : undefined
+  }
+  const usernameArg = getVal('--username')
+  const emailArg = getVal('--email')
 
   await connectDB()
 
-  const userFilter = includeAdmin ? {} : { role: { $ne: 'admin' } }
+  let userFilter = includeAdmin ? {} : { role: { $ne: 'admin' } }
+  if (usernameArg || emailArg) {
+    userFilter = {}
+    if (usernameArg) userFilter.username = usernameArg
+    if (emailArg) userFilter.email = emailArg
+  }
   const users = await User.find(userFilter).select('_id username role')
   const ids = users.map(u => u._id)
 
@@ -58,4 +72,3 @@ main().catch(async (err) => {
   try { await mongoose.disconnect() } catch (_) {}
   process.exit(1)
 })
-

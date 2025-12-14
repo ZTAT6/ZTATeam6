@@ -7,9 +7,10 @@ import { generateCode } from "../utils/verification.js"
 
 const router = express.Router()
 
+// Zero Trust: only teacher role can access teacher routes
 router.use(requireRole("teacher"))
 
-// Allow write operations only from trusted device or internal network
+// Context-aware policy: allow write operations only from trusted device or internal network
 async function ensureTrustedEdit(req, res, next) {
   try {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip

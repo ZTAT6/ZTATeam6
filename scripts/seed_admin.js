@@ -6,15 +6,31 @@ import { User } from "../src/models/index.js";
 import { hashPassword } from "../src/utils/password.js";
 
 async function run() {
-  const username = process.env.ADMIN_USERNAME || "admin";
-  const email = process.env.ADMIN_EMAIL || "admin@example.com";
-  const password = process.env.ADMIN_PASSWORD || "ChangeMe123!";
+  const argUser = process.argv[2];
+  const argEmail = process.argv[3];
+  const argPass = process.argv[4];
+  const username = argUser || process.env.ADMIN_USERNAME || "admin";
+  const email = argEmail || process.env.ADMIN_EMAIL || "admin@example.com";
+  const password = argPass || process.env.ADMIN_PASSWORD || "ChangeMe123!";
 
   await connectDB();
 
-  const existing = await User.findOne({ username });
+  let existing = await User.findOne({ $or: [{ username }, { email }] });
   if (existing) {
-    console.log("Admin user already exists:", username);
+    const hashed = await hashPassword(password);
+    // Try to set desired username if available or already same
+    if (existing.username !== username) {
+      const conflict = await User.findOne({ username });
+      if (!conflict || String(conflict._id) === String(existing._id)) {
+        existing.username = username;
+      }
+    }
+    existing.email = email;
+    existing.password = hashed;
+    existing.role = "admin";
+    existing.status = "active";
+    await existing.save();
+    console.log("Admin updated:", existing.username);
     await mongoose.disconnect();
     return;
   }
