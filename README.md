@@ -188,14 +188,8 @@ POST /auth/forgot-password/reset
 
 🧪 cURL Examples
 # Register with SMS OTP
-curl -X POST http://localhost:4000/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"username":"u1","password":"Passw0rd!","email":"u1@example.com","phone":"+15551234567","channel":"sms"}'
-
-# Verify signup
-curl -X POST http://localhost:4000/auth/verify-signup \
-  -H 'Content-Type: application/json' \
-  -d '{"identifier":"+15551234567","code":"123456","channel":"sms"}'
 
 🔮 Future Enhancements
 
