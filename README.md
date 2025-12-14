@@ -131,8 +131,6 @@ EMAIL_FROM
 
 Application URL
 
-APP_BASE_URL (default: http://localhost:5176)
-
 SMS (Twilio)
 
 TWILIO_ACCOUNT_SID
