@@ -171,5 +171,5 @@ curl -X POST http://localhost:4000/auth/forgot-password/request \
 # Reset password with code
 curl -X POST http://localhost:4000/auth/forgot-password/reset \
   -H 'Content-Type: application/json' \
-  -d '{"identifier":"u1@example.com","code":"123456","new_password":"NewPassw0rd!"}'
+  - d '{"identifier":"u1@example.com","code":"123456","new_password":"NewPassw0rd!"}'
 ```
