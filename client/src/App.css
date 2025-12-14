@@ -114,6 +114,28 @@ input[type="text"], input[type="email"], input[type="password"] {
 .course-card .level-tag { display:inline-block; background:#eef2ff; color:#0a4ea8; border-radius:999px; padding:4px 10px; font-weight:700; font-size:12px; }
 .course-actions { display:flex; gap: 8px; margin-top: 12px; }
 
+/* Pricing table for Fee page */
+.pricing-table { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px,1fr)); gap: 16px; margin-top: 16px; }
+.plan { background:#fff; border:1px solid #e5e7eb; border-radius: 14px; padding: 16px; text-align:center; }
+.plan { display:flex; flex-direction:column; }
+.plan.popular { border-color:#0a4ea8; box-shadow: 0 8px 16px rgba(10,78,168,0.12); }
+.plan-name { font-weight:800; color:#0a4ea8; font-size: 18px; }
+.price { margin-top: 6px; font-size: 22px; font-weight: 800; color:#111827; }
+.features { list-style:none; padding:0; margin: 10px 0; color:#374151; text-align:left; }
+.plan .features { flex: 1; }
+.plan button { width: 100%; height: 44px; border-radius: 12px; font-weight: 700; margin-top: 10px; }
+.features li { margin: 6px 0; }
+.methods-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; }
+.method-card { background:#f7faff; border:1px solid #cfe1ff; border-radius:12px; padding: 12px; color:#0a4ea8; font-weight:700; }
+
+/* Support page styles */
+.support-form { display:flex; flex-direction:column; gap: 12px; max-width: 680px; }
+.support-form textarea { min-height: 120px; border:1px solid #e5e7eb; border-radius:10px; padding:10px 12px; font-size: 16px; resize: vertical; }
+.faq-list { display:grid; gap: 10px; }
+.faq-item { background:#fff; border:1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+.faq-item .q { font-weight:700; color:#0a4ea8; margin-bottom: 6px; }
+.faq-item .a { color:#374151; }
+
 /* --- Auth UI polish additions --- */
 /* Focus ring for inputs */
 .field input:focus {

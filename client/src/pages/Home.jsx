@@ -39,9 +39,9 @@ export default function Home() {
           { key: 'menu_intro', to: '/about' },
           { key: 'menu_courses', to: '/courses' },
           { key: 'menu_teachers', to: '#' },
-          { key: 'menu_fee', to: '#' },
+          { key: 'menu_fee', to: '/fee' },
           { key: 'menu_exam', to: '#' },
-          { key: 'menu_support', to: '#' },
+          { key: 'menu_support', to: '/support' },
         ].map((item,i)=>(
           <a key={i} href="#" onClick={(e)=>{e.preventDefault(); if (item.to !== '#') nav(item.to)}}>{t(item.key)}</a>
         ))}

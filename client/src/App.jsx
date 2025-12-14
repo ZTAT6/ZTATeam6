@@ -6,6 +6,8 @@ import PasswordStrength, { scorePassword } from './components/PasswordStrength'
 import Home from './pages/Home'
 import About from './pages/About'
 import Courses from './pages/Courses'
+import Fee from './pages/Fee'
+import Support from './pages/Support'
 import { I18nProvider, useI18n } from './i18n.jsx'
 
 function saveAuth(token, role) {
@@ -1247,6 +1249,8 @@ export default function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/courses" element={<Courses />} />
+          <Route path="/fee" element={<Fee />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/verify" element={<VerifyPage />} />
