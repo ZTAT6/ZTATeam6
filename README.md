@@ -1,174 +1,206 @@
-# 🎓 Zero Trust Access-Based Online Learning System  
+🎓 Zero Trust Access-Based Online Learning System
 
-> Developed by **Team ZTATeam6** — Secure. Scalable. Smart.  
+Developed by Team ZTATeam6
+Secure by Design · Scalable by Architecture · Intelligent by Data
 
----
+🧩 Project Overview
 
-## 🧩 Overview  
+This project delivers a Zero Trust Network Access (ZTNA)–based Online Learning Platform, where no user, device, or service is trusted by default.
+Every access request is explicitly authenticated, authorized, and continuously evaluated.
 
-This project implements a **Zero Trust Access Model (ZTNA)** for an **Online Learning Platform**, ensuring that no entity — user, device, or service — is trusted by default.  
-Each access request is authenticated, authorized, and continuously monitored.  
+By combining role-based hierarchical access control, real-time monitoring, and security analytics, the system ensures a highly secure, scalable, and intelligent digital learning environment.
 
-The system features **role-based hierarchical access control**, **real-time monitoring**, and **security analytics**, providing a secure and intelligent learning environment for all users.
+🚀 Key Features
 
----
+🔐 Zero Trust Authentication
+Continuous verification using JWT / OAuth2 for every request
 
-## 🚀 Key Features  
+👥 Role-Based & Hierarchical Access Control
+Structured permissions: Learner → Instructor → Department Head → Admin
 
-- 🔐 **Zero Trust Authentication** – Every access request is verified (JWT / OAuth2)  
-- 👥 **Role & Hierarchy Management** – Multi-level permissions (Student → Instructor → Head → Admin)  
-- 🧑‍🏫 **Course & Content Management** – Upload, edit, and manage learning materials  
-- 📊 **Real-time Dashboard** – Track users, sessions, and activity metrics  
-- 🕵️ **Activity Logging & Auditing** – Detailed user activity and event tracking  
-- ⚠️ **Anomaly Detection** – Identify unusual login patterns and IP anomalies  
-- 📡 **Secure APIs** – Protected by HTTPS, WAF, and rate-limiting  
-- 🔧 **Admin Tools** – Manage users, assign roles, and monitor performance  
+🧑‍🏫 Course & Content Management
+Create, update, and manage learning materials securely
 
----
+📊 Real-Time Dashboard
+Monitor active users, sessions, and system activity
 
-## 🧱 Zero Trust Architecture  
+🕵️ Audit Logging & Activity Tracking
+Full visibility into user actions and system events
 
-### 🔑 Core Security Principles  
+⚠️ Anomaly Detection
+Detect suspicious behavior such as unusual IPs or login patterns
 
-- **Never Trust, Always Verify** – Authentication at every access point  
-- **Least Privilege Access** – Limit permissions to only what’s necessary  
-- **Micro-Segmentation** – Isolate resources and services by security zone  
-- **Continuous Monitoring** – Real-time audit logs and event tracking  
+📡 Secure APIs
+Protected by HTTPS, WAF, and rate-limiting
 
-### 🧩 System Model  
+🔧 Administrative Controls
+Centralized user, role, and system management
 
-[ Client (Browser / Mobile) ]
-↓
+🧱 Zero Trust Architecture
+🔑 Core Security Principles
+
+Never Trust, Always Verify – Every request is authenticated
+
+Least Privilege Access – Users only get what they need
+
+Micro-Segmentation – Services isolated by security zones
+
+Continuous Monitoring – Real-time auditing and analytics
+
+🧩 High-Level System Flow
+[ Client (Web / Mobile) ]
+          ↓
 [ API Gateway / Auth Service ]
-↓
+          ↓
 [ Service Layer (Business Logic) ]
-↓
-[ Database + Audit & Monitoring Layer ]
+          ↓
+[ Database + Audit & Monitoring ]
 
----
-
-## 🧰 Tech Stack  
-
-| Component | Technology |
-|------------|-------------|
-| **Frontend** | React (Vite) |
-| **Backend** | Node.js (Express)|
-| **Database** | MongoDB |
-| **Authentication** | JWT / OAuth2 |
-| **DevOps / CI-CD** | GitHub Actions |
-| **Security Protocols** | HTTPS, MFA, ZTA |
-
----
-
-## 🗂️ Project Structure  
-
+🧰 Technology Stack
+Layer	Technology
+Frontend	React (Vite)
+Backend	Node.js (Express)
+Database	MongoDB
+Authentication	JWT / OAuth2
+CI/CD	GitHub Actions
+Security	HTTPS, MFA, Zero Trust Model
+🗂️ Project Structure
 ZTATeam6/
-├── frontend/ # Frontend application
-│ ├── src/
-│ └── package.json
-├── backend/ # Backend service (API + business logic)
-│ ├── src/
-│ └── package.json / pom.xml
-├── data/ # Database scripts / migrations
-├── infra/ #  Nginx, CI/CD configs
+├── frontend/        # Client-side application
+│   ├── src/
+│   └── package.json
+├── backend/         # API & business logic
+│   ├── src/
+│   └── package.json
+├── data/            # Database scripts / migrations
+├── infra/           # Nginx, CI/CD, infrastructure configs
 └── README.md
 
-## ⚙️ Installation & Setup  
+⚙️ Installation & Setup
+🔧 System Requirements
 
-### 1️⃣ System Requirements  
+Node.js ≥ 18
 
-- Node.js ≥ 18  
-- Javascript ≥ 17  
-- MongoDB ≥ 6.0  
----
+JavaScript ≥ ES17
+
+MongoDB ≥ 6.0
+
 👥 User Roles & Permissions
 Role	Description	Permissions
-Learner	Student	Enroll, view assigned courses
-Instructor	Teacher	Create/manage courses and students
-Department Head	Supervisor	Monitor instructors, view reports
-Admin	System Admin	Full access to all resources
-
+Learner	Student	Enroll and view assigned courses
+Instructor	Teacher	Create and manage courses & students
+Department Head	Supervisor	Monitor instructors and view reports
+Admin	System Administrator	Full system access
 📊 Analytics & Monitoring
-Activity Logs – Track all user/system actions
 
-Reports – View engagement, active users, and session data
+Activity Logs – Track all user and system actions
 
-Security Alerts – Auto-detect login anomalies and suspicious behavior
+Reports – User engagement, active sessions, and usage trends
+
+Security Alerts – Automatic detection of suspicious behavior
 
 ⚙️ DevOps & Deployment
 Tool	Purpose
-GitHub Actions	CI/CD automation for testing and deployment
-Nginx	Reverse proxy with HTTPS support
-Prometheus + Grafana	Monitor performance and uptime
-ELK Stack (Optional)	Centralized logging (Elasticsearch, Logstash, Kibana)
+GitHub Actions	CI/CD automation
+Nginx	Reverse proxy with HTTPS
+Prometheus + Grafana	Performance & uptime monitoring
+ELK Stack (Optional)	Centralized logging & analytics
+🔢 OTP Verification (Email / SMS)
 
-🔮 Future Improvements
+The system supports One-Time Password (OTP) verification via Email or SMS for both account registration and password recovery.
 
-💬 Real-time chat and collaboration tools
+✉️ Supported Flows
 
-🌐 Multi-tenant deployment for institutions
+Signup Verification – OTP via Email or SMS
 
-🔐 Integration with Zero Trust Network Access (ZTNA) systems
+Forgot Password – OTP verification before reset
 
----
+🔐 Environment Variables
 
-## 🔢 OTP Verification (Email/SMS)
+Email (Nodemailer)
 
-- Signup now supports delivering OTP via `email` or `sms`.
-- Forgot password flow uses OTP via `email` or `sms` before resetting.
+SMTP_HOST
 
-### Environment Variables
+SMTP_PORT
 
-- Email (Nodemailer):
-  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`
-- App base URL (for links):
-  - `APP_BASE_URL` (default `http://localhost:5176`)
-- SMS (Twilio REST API):
-  - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`
+SMTP_USER
 
-If not configured, the app logs OTP codes to the console in dev mode.
+SMTP_PASS
 
-### API Endpoints
+EMAIL_FROM
 
-- `POST /auth/register`
-  - Body: `{ username, password, email, full_name?, phone?, channel?: 'email'|'sms' }`
-  - Response: `201` with message to verify by chosen channel.
+Application URL
 
-- `POST /auth/verify-email`
-  - Body: `{ email, code }` (legacy email-only verification)
+APP_BASE_URL (default: http://localhost:5176)
 
-- `POST /auth/verify-signup`
-  - Body: `{ identifier, code, channel?: 'email'|'sms' }`
-  - `identifier` is email or phone; verifies OTP and creates the user.
+SMS (Twilio)
 
-- `POST /auth/forgot-password/request`
-  - Body: `{ identifier, channel?: 'email'|'sms' }`
-  - Sends OTP code to email or phone.
+TWILIO_ACCOUNT_SID
 
-- `POST /auth/forgot-password/reset`
-  - Body: `{ identifier, code, new_password }`
-  - Verifies OTP and resets the password.
+TWILIO_AUTH_TOKEN
 
-### cURL Examples
+TWILIO_FROM_NUMBER
 
-```bash
+⚠️ In development mode, OTP codes are logged to the console if Email/SMS is not configured.
+
+🔗 Authentication API Endpoints
+🔸 Register User
+
+POST /auth/register
+
+{
+  "username": "string",
+  "password": "string",
+  "email": "string",
+  "full_name": "string (optional)",
+  "phone": "string (optional)",
+  "channel": "email | sms"
+}
+
+🔸 Verify Signup OTP
+
+POST /auth/verify-signup
+
+{
+  "identifier": "email or phone",
+  "code": "OTP",
+  "channel": "email | sms"
+}
+
+🔸 Forgot Password – Request OTP
+
+POST /auth/forgot-password/request
+
+{
+  "identifier": "email or phone",
+  "channel": "email | sms"
+}
+
+🔸 Reset Password
+
+POST /auth/forgot-password/reset
+
+{
+  "identifier": "email or phone",
+  "code": "OTP",
+  "new_password": "string"
+}
+
+🧪 cURL Examples
 # Register with SMS OTP
 curl -X POST http://localhost:4000/auth/register \
   -H 'Content-Type: application/json' \
   -d '{"username":"u1","password":"Passw0rd!","email":"u1@example.com","phone":"+15551234567","channel":"sms"}'
 
-# Verify signup via SMS
+# Verify signup
 curl -X POST http://localhost:4000/auth/verify-signup \
   -H 'Content-Type: application/json' \
   -d '{"identifier":"+15551234567","code":"123456","channel":"sms"}'
 
-# Request forgot password via email
-curl -X POST http://localhost:4000/auth/forgot-password/request \
-  -H 'Content-Type: application/json' \
-  -d '{"identifier":"u1@example.com","channel":"email"}'
+🔮 Future Enhancements
 
-# Reset password with code
-curl -X POST http://localhost:4000/auth/forgot-password/reset \
-  -H 'Content-Type: application/json' \
-  -d '{"identifier":"u1@example.com","code":"123456","new_password":"NewPassw0rd!"}'
-```
+💬 Real-time chat & collaboration
+
+🌐 Multi-tenant support for institutions
+
+🔐 Integration with enterprise ZTNA solutions
