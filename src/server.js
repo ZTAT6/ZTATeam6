@@ -64,6 +64,7 @@ app.use(express.static(clientDist));
 
 // Routes
 app.use("/auth", authRoutes);
+// Zero Trust: pipeline bảo vệ với auth + activity log
 app.use("/admin", authMiddleware, activityLogger, adminRoutes);
 app.use("/teacher", authMiddleware, activityLogger, teacherRoutes);
 app.use("/me", authMiddleware, activityLogger, meRoutes);

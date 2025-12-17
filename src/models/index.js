@@ -8,20 +8,29 @@ const userSchema = new mongoose.Schema({
   phone: { type: String, unique: true, sparse: true },
   full_name: String,
   role: { type: String, enum: ["admin", "teacher", "student"], required: true },
+  permissions: { type: [String], default: [] }, // Granular permissions for teachers
   created_by: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   status: { type: String, default: "active" },
   last_login: Date,
   created_at: { type: Date, default: Date.now },
 });
 
-userSchema.index({ username: 1 }, { unique: true });
-userSchema.index({ email: 1 }, { unique: true });
+// userSchema.index({ username: 1 }, { unique: true }); // Redundant: defined in schema
+// userSchema.index({ email: 1 }, { unique: true }); // Redundant: defined in schema
 
 // COURSES
 const courseSchema = new mongoose.Schema({
   code: { type: String },
   title: String,
   description: String,
+  price: Number,
+  thumbnail: String,
+  modules: [
+    {
+      title: String,
+      lessons: [{ title: String, content: String }]
+    }
+  ],
   lecturer_id: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   created_at: { type: Date, default: Date.now },
   updated_at: Date,

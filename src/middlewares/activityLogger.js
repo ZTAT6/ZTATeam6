@@ -8,6 +8,9 @@ export async function activityLogger(req, res, next) {
 
   res.on("finish", async () => {
     try {
+      // Theo dõi: middleware ghi log hoạt động cho mọi request (được bảo vệ),
+      // lưu hành động, tài nguyên, chính sách áp dụng, IP/thiết bị và mã trạng thái.
+      // Zero Trust: ghi nhận hành động kèm chính sách, IP, thiết bị và mã trạng thái
       const url = (req.originalUrl || "").split("?")[0] || "";
       const method = req.method || "";
       const targetId = req.params?.id || "";

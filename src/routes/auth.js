@@ -31,7 +31,7 @@ router.post(
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
     try {
-      // Zero-trust rule: public registration only allows 'student'
+      // Zero Trust: đăng ký công khai chỉ tạo tài khoản 'student'
       const role = "student";
       let { username, password, email, full_name, phone } = req.body;
       let channel = req.body.channel || (email ? "email" : "sms");
@@ -94,6 +94,7 @@ router.post(
         message: "Signup successful. Please verify your email.",
       });
     } catch (err) {
+      console.error("Registration error:", err);
       return res.status(500).json({ error: "Registration failed" });
     }
   }
@@ -156,11 +157,7 @@ router.get("/dev/latest-reset", async (req, res) => {
   }
 });
 
-router.post(
-  "/login",
-  loginLimiter,
-  [body("username").isString(), body("password").isString()],
-  async (req, res) => {
+router.post("/login", loginLimiter, [body("username").isString(), body("password").isString()], async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
@@ -183,6 +180,7 @@ router.post(
       }
 
       if (user.status !== "active") {
+        // Zero Trust: tài khoản chưa được admin duyệt thì chặn đăng nhập
         return res.status(403).json({ error: "Account not active. Awaiting admin approval." });
       }
 
@@ -198,6 +196,7 @@ router.post(
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       const failsRecent = await FailedLogin.countDocuments({ username, timestamp: { $gte: oneHourAgo } });
       if (needsChallenge) {
+        // Zero Trust: yêu cầu xác nhận đăng nhập qua email khi có dấu hiệu rủi ro
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
           user_id: user._id,
@@ -215,6 +214,7 @@ router.post(
 
       // Immediate login when no risk detected
       if (!trusted && failsRecent >= 3 && !isInternalIp) {
+        // Zero Trust: chặn đăng nhập trực tiếp khi có nhiều lần thất bại từ IP ngoài
         const tokenChallenge = crypto.randomBytes(32).toString("hex");
         const challenge = await LoginChallenge.create({
           user_id: user._id,
@@ -289,7 +289,7 @@ router.get("/confirm-login", async (req, res) => {
       expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
     });
 
-    // Mark device as trusted on approval
+    // Zero Trust: đánh dấu thiết bị là trusted sau khi người dùng xác nhận login
     try {
       const td = await TrustedDevice.findOne({ user_id: user._id, device_info: challenge.device_info });
       if (td) {

@@ -5,15 +5,18 @@ import { User, ActivityLog, Course, Enrollment, Classroom, TrustedDevice, Sessio
 import { generateCode } from "../utils/verification.js";
 import { hashPassword } from "../utils/password.js";
 import mongoose from "mongoose";
+import { DEFAULT_TEACHER_PERMISSIONS } from "../config/permissions.js";
 
 const router = express.Router();
 
 // Only admin can access these routes
+// Zero Trust: phân quyền – chỉ người dùng có vai trò 'admin' mới được phép truy cập
 router.use(requireRole("admin"));
 
 // Enforce admin access only from trusted device or internal network
 router.use(async (req, res, next) => {
   try {
+    // Zero Trust: chỉ cho phép Admin từ IP nội bộ hoặc thiết bị đã được tin cậy
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     const device = req.headers["user-agent"] || "unknown";
     const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);
@@ -54,6 +57,7 @@ router.post(
         email,
         full_name,
         role: "teacher",
+        permissions: DEFAULT_TEACHER_PERMISSIONS,
         created_by: req.user.id,
       });
 
@@ -81,7 +85,7 @@ router.get("/users/students", async (req, res) => {
 router.get("/users/teachers", async (req, res) => {
   try {
     const teachers = await User.find({ role: "teacher" })
-      .select("username email status created_at full_name")
+      .select("username email status created_at full_name permissions")
       .sort({ created_at: -1 })
       .lean();
     return res.status(200).json(teachers);
@@ -119,10 +123,38 @@ router.patch(
   }
 );
 
+// Update user permissions (admin-only)
+router.patch(
+  "/users/:id/permissions",
+  [
+    body("permissions").isArray(),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+    const { id } = req.params;
+    const { permissions } = req.body;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid user id" });
+    try {
+      const user = await User.findById(id);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      if (user.role !== "teacher") return res.status(400).json({ error: "Only teachers have permissions to manage" });
+
+      user.permissions = permissions;
+      await user.save();
+      return res.status(200).json({ id: user._id, permissions: user.permissions });
+    } catch (err) {
+      return res.status(500).json({ error: "Failed to update permissions" });
+    }
+  }
+);
+
 // Block any attempt to create an admin account via API (no route provided).
 // For visibility, admin can list activity logs with filters
 router.get("/activity", async (req, res) => {
   try {
+    // Theo dõi: endpoint cho admin xem nhật ký hoạt động toàn hệ thống (lọc theo user/status)
     const { userId, status, limit = 50 } = req.query;
     const query = {};
     if (userId) query.user_id = userId;
@@ -267,20 +299,47 @@ router.patch("/classes/:id/regenerate-code", async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid id" });
   try {
-    const cls = await Classroom.findById(id);
-    if (!cls) return res.status(404).json({ error: "Class not found" });
-    let code = generateCode();
-    for (let i = 0; i < 3; i++) {
-      const exists = await Classroom.findOne({ join_code: code }).lean();
-      if (!exists) break;
-      code = generateCode();
+      const cls = await Classroom.findById(id);
+      if (!cls) return res.status(404).json({ error: "Class not found" });
+      let code = generateCode();
+      for (let i = 0; i < 3; i++) {
+        const exists = await Classroom.findOne({ join_code: code }).lean();
+        if (!exists) break;
+        code = generateCode();
+      }
+      cls.join_code = code;
+      cls.updated_at = new Date();
+      await cls.save();
+      return res.status(200).json({ id: cls._id, join_code: cls.join_code });
+    } catch (err) {
+      return res.status(500).json({ error: "Regenerate code failed" });
     }
-    cls.join_code = code;
-    cls.updated_at = new Date();
-    await cls.save();
-    return res.status(200).json({ id: cls._id, join_code: cls.join_code });
+  });
+
+// Delete user (admin-only)
+router.delete("/users/:id", async (req, res) => {
+  const { id } = req.params;
+  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "Invalid user id" });
+  try {
+    const user = await User.findById(id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Prevent deleting self or other admins
+    if (user.role === "admin") {
+       return res.status(403).json({ error: "Cannot delete admin account" });
+    }
+
+    await User.findByIdAndDelete(id);
+    // Cleanup related data
+    try { await Session.deleteMany({ user_id: id }); } catch (_) {}
+    try { await Enrollment.deleteMany({ student_id: id }); } catch (_) {}
+    try { await ClassMember.deleteMany({ student_id: id }); } catch (_) {}
+    // If teacher, maybe clean up courses/classes? For now, keep it simple or set lecturer_id to null?
+    // Doing nothing leaves orphaned courses/classes, which might be okay or handled elsewhere.
+
+    return res.status(200).json({ ok: true });
   } catch (err) {
-    return res.status(500).json({ error: "Regenerate code failed" });
+    return res.status(500).json({ error: "Delete failed" });
   }
 });
 

@@ -9,6 +9,7 @@ import Courses from './pages/Courses'
 import Fee from './pages/Fee'
 import Support from './pages/Support'
 import { I18nProvider, useI18n } from './i18n.jsx'
+import { PERMISSION_GROUPS, PERMISSION_LABELS } from './permissions'
 
 function saveAuth(token, role) {
   localStorage.setItem('token', token)
@@ -56,25 +57,7 @@ function LoginPage() {
   const [tab, setTab] = useState('login')
   const [signupPassword, setSignupPassword] = useState('')
   const [signupConfirm, setSignupConfirm] = useState('')
-  const [backendStatus, setBackendStatus] = useState('checking')
-  useEffect(() => {
-    let active = true
-    ;(async () => {
-      try {
-        const res = await fetch('/health/db')
-        const json = await res.json().catch(() => ({}))
-        if (!active) return
-        if (json?.status === 'ok' && json?.db?.pingOk) {
-          setBackendStatus('ok')
-        } else {
-          setBackendStatus('fail')
-        }
-      } catch {
-        if (active) setBackendStatus('fail')
-      }
-    })()
-    return () => { active = false }
-  }, [])
+  
   async function onLogin(e) {
     e.preventDefault()
     const form = new FormData(e.currentTarget)
@@ -132,9 +115,6 @@ function LoginPage() {
               <option value="vi">VI</option>
               <option value="en">EN</option>
             </select>
-            <span style={{ marginLeft: 8, padding: '4px 8px', borderRadius: 999, fontSize: 12, background: backendStatus==='ok'?'#e8f5e9':'#fdecea', color: backendStatus==='ok'?'#1b5e20':'#b71c1c', border: '1px solid '+(backendStatus==='ok'?'#c8e6c9':'#f5c6cb') }}>
-              Backend: {backendStatus==='checking'?'checking...':backendStatus==='ok'?'OK':'Fail'}
-            </span>
           </div>
         </div>
         <div className="title-track">
@@ -269,6 +249,7 @@ function ActivityList({ items }) {
   return (
     <ul className="activity-list">
       {list.map((it) => {
+        // Theo dõi: hiển thị từng bản ghi ActivityLog gồm thời gian, hành động, mục tiêu, status, resource, user, IP và device
         const user = typeof it.user_id === 'object' ? (it.user_id.full_name || it.user_id.username || it.user_id.role || '') : (it.user_id || '')
         const ts = it.timestamp ? new Date(it.timestamp).toLocaleString() : ''
         const status = it.status ? String(it.status) : ''
@@ -298,7 +279,6 @@ function ActivityList({ items }) {
 }
 
 function TeacherPage() {
-  const [items, setItems] = useState([])
   const [myCourses, setMyCourses] = useState([])
   const [myClasses, setMyClasses] = useState([])
   const [profile, setProfile] = useState(null)
@@ -306,11 +286,15 @@ function TeacherPage() {
   const [creatingClass, setCreatingClass] = useState(false)
   const [classForm, setClassForm] = useState({ name: '', course_id: '' })
   const [classErrors, setClassErrors] = useState({})
+  const [renameMap, setRenameMap] = useState({})
+  const [scheduleMap, setScheduleMap] = useState({})
+  const [assignMap, setAssignMap] = useState({})
+  const [busyId, setBusyId] = useState(null)
+  const [selectedClassId, setSelectedClassId] = useState(null)
+  const [selectedAction, setSelectedAction] = useState(null)
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
-    fetch('/me/activity?limit=50', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json()).then(setItems).catch(() => {})
     fetch('/me/profile', { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(setProfile).catch(() => {})
     fetch('/me/trust-status', { headers: { Authorization: `Bearer ${token}` } })
@@ -372,12 +356,75 @@ function TeacherPage() {
       alert(err.message || 'Regenerate code failed')
     }
   }
+  async function onRenameClass(classId) {
+    if (!classId) return
+    const nextName = (renameMap[classId] ?? '').trim()
+    if (!nextName) return alert('Tên lớp không được để trống')
+    try {
+      setBusyId(classId)
+      const { token } = getAuth()
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}`, { method:'PATCH', headers: hdr, body: JSON.stringify({ name: nextName }) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Update failed')
+      setMyClasses(prev => Array.isArray(prev) ? prev.map(c => (c._id === classId ? { ...c, name: nextName } : c)) : prev)
+      alert('Đã đổi tên lớp')
+    } catch (err) {
+      alert(err.message || 'Rename failed')
+    } finally { setBusyId(null) }
+  }
+  async function onDeleteClass(classId) {
+    if (!classId) return
+    try {
+      setBusyId(classId)
+      const { token } = getAuth()
+      const hdr = { Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}`, { method:'DELETE', headers: hdr })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Delete failed')
+      setMyClasses(prev => Array.isArray(prev) ? prev.filter(c => c._id !== classId) : prev)
+      alert('Đã xóa lớp')
+    } catch (err) {
+      alert(err.message || 'Delete failed')
+    } finally { setBusyId(null) }
+  }
+  async function onScheduleClass(classId) {
+    try {
+      setBusyId(classId)
+      const { token } = getAuth()
+      const payload = scheduleMap[classId] || {}
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}/schedule`, { method:'POST', headers: hdr, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Schedule failed')
+      alert('Đã thiết lập lịch học')
+    } catch (err) {
+      const msg = String(err.message||'').includes('Missing permission')
+        ? 'Thiếu quyền: Thiết lập lịch học'
+        : (err.message || 'Thiết lập lịch học thất bại')
+      alert(msg)
+    } finally { setBusyId(null) }
+  }
+  async function onAssignContent(classId) {
+    try {
+      setBusyId(classId)
+      const { token } = getAuth()
+      const payload = assignMap[classId] ? { content: assignMap[classId] } : {}
+      const hdr = { 'Content-Type':'application/json', Authorization: `Bearer ${token}` }
+      const res = await fetch(`/teacher/classes/${encodeURIComponent(classId)}/content`, { method:'POST', headers: hdr, body: JSON.stringify(payload) })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Assign failed')
+      alert('Đã gán học liệu/bài kiểm tra cho lớp')
+    } catch (err) {
+      alert(err.message || 'Assign failed')
+    } finally { setBusyId(null) }
+  }
   async function onCopyJoinCode(code) {
     try {
       if (!code) return
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(code)
-        alert('Đã copy mã lớp')
+        alert('Class code copied')
       } else {
         const ta = document.createElement('textarea')
         ta.value = code
@@ -385,10 +432,10 @@ function TeacherPage() {
         ta.select()
         document.execCommand('copy')
         document.body.removeChild(ta)
-        alert('Đã copy mã lớp')
+    alert('Class code copied')
       }
     } catch {
-      alert('Copy thất bại')
+    alert('Copy failed')
     }
   }
   return (
@@ -398,82 +445,145 @@ function TeacherPage() {
       <section className="teacher-hero">
         <div className="avatar" />
         <div className="hero-info">
-          <h1>Xin chào, {profile?.full_name || profile?.username || 'Giáo viên'}</h1>
+          <h1>Hello, {profile?.full_name || profile?.username || 'Teacher'}</h1>
           <div className="hero-meta">
             <span className="role-badge">Teacher</span>
             <span className="email">{profile?.email || '—'}</span>
           </div>
         </div>
         <div className="hero-stats">
-          <div className="stat-card"><div className="label">Khoá học</div><div className="value">{Array.isArray(myCourses)?myCourses.length:0}</div></div>
-          <div className="stat-card"><div className="label">Lớp</div><div className="value">{Array.isArray(myClasses)?myClasses.length:0}</div></div>
-          <div className="stat-card"><div className="label">Đang hoạt động</div><div className="value">{Array.isArray(myClasses)?myClasses.filter(c=>c.status==='active').length:0}</div></div>
+          <div className="stat-card"><div className="label">Courses</div><div className="value">{Array.isArray(myCourses)?myCourses.length:0}</div></div>
+          <div className="stat-card"><div className="label">Classes</div><div className="value">{Array.isArray(myClasses)?myClasses.length:0}</div></div>
+          <div className="stat-card"><div className="label">Active</div><div className="value">{Array.isArray(myClasses)?myClasses.filter(c=>c.status==='active').length:0}</div></div>
         </div>
       </section>
 
       <section className="teacher-section">
-        <div className="section-head"><h2>Quản lý lớp</h2></div>
+        <div className="section-head"><h2>Class Management</h2></div>
         <div className="panel">
-          <h3 className="panel-title">Tạo lớp</h3>
-          <form className="stack-form" onSubmit={onCreateClass} aria-label="Tạo lớp">
+          <h3 className="panel-title">Create Class</h3>
+          <form className="stack-form" onSubmit={onCreateClass} aria-label="Create class">
             <div className="field">
-              <label>Tên lớp</label>
-              <input type="text" placeholder="Nhập tên lớp" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
+              <label>Class name</label>
+              <input type="text" placeholder="Enter class name" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
               {classErrors.name && <div className="form-error">{classErrors.name}</div>}
             </div>
             <div className="field">
               <select value={classForm.course_id} onChange={e=>{ setClassForm({ ...classForm, course_id: e.target.value }); if (classErrors.course_id) setClassErrors({ ...classErrors, course_id: undefined }) }}>
-                <option value="">Chọn khoá học của tôi</option>
+                <option value="">Select my course</option>
                 {(Array.isArray(myCourses)?myCourses:[]).map(c => (
                   <option key={c._id||c.id} value={c._id||c.id}>{c.title}</option>
                 ))}
               </select>
               {classErrors.course_id && <div className="form-error">{classErrors.course_id}</div>}
             </div>
-            <button className="btn" disabled={creatingClass || !trusted} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
+            <button className="btn" disabled={creatingClass || !trusted} type="submit">{creatingClass? 'Creating...' : 'Create class'}</button>
           </form>
         </div>
 
         <div className="panel" style={{ marginTop: 16 }}>
-          <h3 className="panel-title">Danh sách lớp của tôi</h3>
+          <h3 className="panel-title">My Classes</h3>
           <div className="cards-grid">
-            {(Array.isArray(myClasses)?myClasses:[]).map((cl,i)=> (
-              <div key={cl._id||i} className="card">
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+            {(Array.isArray(myClasses)?myClasses:[]).map((cl,i)=> {
+              const isSelected = selectedClassId === cl._id
+              return (
+              <div key={cl._id||i} className={`card${isSelected ? ' selected' : ''}`}>
+                <div className="card-header" aria-expanded={isSelected}>
                   <div className="title">{cl.name}</div>
                   <span className={`status-badge ${cl.status}`}>{cl.status}</span>
                 </div>
-                <div className="meta">Khoá: {cl.course_id}</div>
-                <div className="meta">Mã lớp: {cl.join_code || '—'}</div>
-                <div className="meta">Tạo: {new Date(cl.created_at).toLocaleString()}</div>
-                <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                  <button className="btn" type="button" onClick={()=>onCopyJoinCode(cl.join_code)}>Copy mã</button>
-                  <button className="btn" disabled={!trusted} type="button" onClick={()=>onRegenerateClassCode(cl._id)}>Đổi mã</button>
-                </div>
-                <div style={{ marginTop: 8 }}>
-                  <select defaultValue={cl.status} disabled={!trusted} onChange={(e)=>onUpdateClassStatus(cl._id, e.target.value)}>
-                    <option value="active">active</option>
-                    <option value="inactive">inactive</option>
-                    <option value="blocked">blocked</option>
-                  </select>
+                <div className="meta">Course: {cl.course_id}</div>
+                <div className="meta">Class code: {cl.join_code || '—'}</div>
+                <div className="meta">Created: {new Date(cl.created_at).toLocaleString()}</div>
+                <div className="card-actions">
+                  <button className="btn btn-sm" type="button" onClick={()=>onCopyJoinCode(cl.join_code)}>Copy code</button>
+                  <button className="btn btn-sm" disabled={!trusted} type="button" onClick={()=>onRegenerateClassCode(cl._id)}>Regenerate code</button>
+                  <button
+                    className="btn btn-sm"
+                    type="button"
+                    aria-expanded={isSelected}
+                    onClick={()=>{ if (isSelected) { setSelectedClassId(null); setSelectedAction(null) } else { setSelectedClassId(cl._id); setSelectedAction('status') } }}
+                  >{isSelected ? 'Đóng' : 'Quản lý lớp'}</button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
+          {selectedClassId && (
+            (() => {
+              const selected = (Array.isArray(myClasses)?myClasses:[]).find(c => c._id === selectedClassId)
+              if (!selected) return null
+              const canSchedule = Array.isArray(profile?.permissions) && profile.permissions.includes('class:schedule')
+              return (
+              <div className="panel manager-panel">
+                <div className="manager-head">
+                  <h3 className="panel-title">Quản lý lớp: {selected.name}</h3>
+                  <button className="btn btn-sm" type="button" onClick={()=>{ setSelectedClassId(null); setSelectedAction(null) }}>Đóng</button>
+                </div>
+                <div className="meta">Mã lớp: {selected.join_code || '—'} • Trạng thái: <span className={`status-badge ${selected.status}`}>{selected.status}</span></div>
+                <div className="subtabs" style={{ marginTop: 10 }}>
+                  <button type="button" className={`subtab${selectedAction==='status'?' active':''}`} onClick={()=>setSelectedAction('status')}>Trạng thái</button>
+                  <button type="button" className={`subtab${selectedAction==='rename'?' active':''}`} onClick={()=>setSelectedAction('rename')}>Đổi tên</button>
+                  {canSchedule && <button type="button" className={`subtab${selectedAction==='schedule'?' active':''}`} onClick={()=>setSelectedAction('schedule')}>Lập lịch</button>}
+                  <button type="button" className={`subtab${selectedAction==='assign'?' active':''}`} onClick={()=>setSelectedAction('assign')}>Gán học liệu</button>
+                  <button type="button" className={`subtab${selectedAction==='delete'?' active':''}`} onClick={()=>setSelectedAction('delete')}>Xóa lớp</button>
+                </div>
+                {selectedAction==='status' && (
+                  <div className="class-status" style={{ marginTop: 10 }}>
+                    <select defaultValue={selected.status} disabled={!trusted} onChange={(e)=>onUpdateClassStatus(selected._id, e.target.value)}>
+                      <option value="active">active</option>
+                      <option value="inactive">inactive</option>
+                      <option value="blocked">blocked</option>
+                    </select>
+                  </div>
+                )}
+                {selectedAction==='rename' && (
+                  <div className="class-ops" id={`class-ops-${selected._id}-rename`}>
+                    <div className="class-row two">
+                      <input type="text" placeholder="Đổi tên lớp" value={renameMap[selected._id] ?? selected.name} onChange={(e)=>setRenameMap(prev=>({ ...prev, [selected._id]: e.target.value }))} />
+                      <button className="btn btn-sm" type="button" disabled={!trusted || busyId===selected._id} onClick={()=>onRenameClass(selected._id)}>Đổi tên</button>
+                    </div>
+                  </div>
+                )}
+                {selectedAction==='schedule' && canSchedule && (
+                  <div className="class-ops" id={`class-ops-${selected._id}-schedule`}>
+                    <div className="class-row three">
+                      <input type="text" placeholder="Link buổi học" value={(scheduleMap[selected._id]?.link)||''} onChange={(e)=>setScheduleMap(prev=>({ ...prev, [selected._id]: { ...(prev[selected._id]||{}), link: e.target.value } }))} />
+                      <input type="datetime-local" value={(scheduleMap[selected._id]?.time)||''} onChange={(e)=>setScheduleMap(prev=>({ ...prev, [selected._id]: { ...(prev[selected._id]||{}), time: e.target.value } }))} />
+                      <button className="btn btn-sm" type="button" disabled={!trusted || busyId===selected._id} onClick={()=>onScheduleClass(selected._id)}>Thiết lập lịch học</button>
+                    </div>
+                  </div>
+                )}
+                {selectedAction==='assign' && (
+                  <div className="class-ops" id={`class-ops-${selected._id}-assign`}>
+                    <div className="class-row three actions">
+                      <input type="text" placeholder="ID/tiêu đề học liệu" value={assignMap[selected._id]||''} onChange={(e)=>setAssignMap(prev=>({ ...prev, [selected._id]: e.target.value }))} />
+                      <button className="btn btn-sm" type="button" disabled={!trusted || busyId===selected._id} onClick={()=>onAssignContent(selected._id)}>Gán học liệu</button>
+                      <button className="btn btn-sm" type="button" onClick={()=>setSelectedAction('delete')}>Sang Xóa</button>
+                    </div>
+                  </div>
+                )}
+                {selectedAction==='delete' && (
+                  <div className="class-ops" id={`class-ops-${selected._id}-delete`}>
+                    <div className="class-row two">
+                      <input type="text" value={selected.name} disabled />
+                      <button className="btn btn-sm btn-danger" type="button" disabled={!trusted || busyId===selected._id} onClick={()=>onDeleteClass(selected._id)}>Xóa lớp</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              )
+            })()
+          )}
         </div>
       </section>
 
       {!trusted && (
         <div className="panel" style={{ marginTop: 12 }}>
-          <div className="form-error">Thiết bị chưa tin cậy — đang ở chế độ chỉ xem. Vui lòng xác nhận đăng nhập qua email để bật quyền sửa.</div>
+          <div className="form-error">Untrusted device — view‑only mode. Please confirm login via email to enable editing.</div>
         </div>
       )}
 
-      <div className="activity-section" style={{ marginTop: 18 }}>
-        <div className="section-head"><h2>Hoạt động gần đây</h2></div>
-        <ActivityList items={items} />
       </div>
-    </div>
   )
 }
 
@@ -494,7 +604,7 @@ function StudentPage() {
 
   async function onJoinClass(e) {
     e.preventDefault()
-    if (!joinCode || joinCode.trim().length !== 6) { alert('Mã lớp gồm 6 chữ số'); return }
+    if (!joinCode || joinCode.trim().length !== 6) { alert('Class code must be 6 digits'); return }
     setJoining(true)
     try {
       const { token } = getAuth()
@@ -502,7 +612,7 @@ function StudentPage() {
       const res = await fetch('/student/join', { method:'POST', headers: hdr, body: JSON.stringify({ code: joinCode.trim() }) })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Join failed')
-      alert('Tham gia lớp thành công')
+      alert('Joined class successfully')
       fetch('/me/enrollments', { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json()).then(setEnrollments).catch(() => {})
       setJoinCode('')
@@ -519,7 +629,7 @@ function StudentPage() {
       <section className="student-hero">
         <div className="avatar" />
         <div className="hero-info">
-          <h1>Xin chào, {profile?.full_name || profile?.username || 'Học viên'}</h1>
+          <h1>Hello, {profile?.full_name || profile?.username || 'Student'}</h1>
           <div className="hero-meta">
             <span className="role-badge">Student</span>
             <span className="email">{profile?.email || '—'}</span>
@@ -531,11 +641,11 @@ function StudentPage() {
             <div className="value">{stats.gpa}</div>
           </div>
           <div className="stat-card">
-            <div className="label">Tín chỉ</div>
+            <div className="label">Credits</div>
             <div className="value">{stats.credits}</div>
           </div>
           <div className="stat-card">
-            <div className="label">Đang chờ</div>
+            <div className="label">Pending</div>
             <div className="value">{stats.pending}</div>
           </div>
         </div>
@@ -544,7 +654,7 @@ function StudentPage() {
       <section className="profile-card">
         <div className="profile-grid">
           <div>
-            <div className="label">Họ và tên</div>
+            <div className="label">Full name</div>
             <div className="value">{profile?.full_name || '—'}</div>
           </div>
           <div>
@@ -560,31 +670,31 @@ function StudentPage() {
 
       <section className="student-courses">
         <div className="section-head">
-          <h2>Khoá học của tôi</h2>
+          <h2>My Courses</h2>
         </div>
         <div className="panel" style={{ marginBottom: 12 }}>
-          <h3 className="panel-title">Tham gia lớp bằng mã</h3>
+          <h3 className="panel-title">Join class with code</h3>
           <form className="stack-form" onSubmit={onJoinClass} aria-label="Join class">
             <div className="field">
-              <input type="text" placeholder="Nhập mã lớp (6 số)" value={joinCode} onChange={e=>setJoinCode(e.target.value)} />
+              <input type="text" placeholder="Enter class code (6 digits)" value={joinCode} onChange={e=>setJoinCode(e.target.value)} />
             </div>
-            <button className="btn" disabled={joining} type="submit">{joining? 'Đang tham gia...' : 'Tham gia lớp'}</button>
+            <button className="btn" disabled={joining} type="submit">{joining? 'Joining...' : 'Join class'}</button>
           </form>
         </div>
         <div className="courses-grid">
           {(Array.isArray(enrollments)?enrollments:[]).map(e => (
             <div key={(e._id||e.course_id?._id||e.course_id)} className="course-card">
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
-                <h3 style={{ margin: 0 }}>{e.course_id?.title || 'Khoá học'}</h3>
+                <h3 style={{ margin: 0 }}>{e.course_id?.title || 'Course'}</h3>
               </div>
               <div className="progress-track">
                 <div className="progress-bar" style={{ width: `0%` }} />
               </div>
-              <div className="progress-label">Đã tham gia: {new Date(e.enrolled_at).toLocaleDateString()}</div>
+              <div className="progress-label">Joined on: {new Date(e.enrolled_at).toLocaleDateString()}</div>
             </div>
           ))}
           {Array.isArray(enrollments) && enrollments.length === 0 && (
-            <div className="empty-state">Chưa có khoá học nào. Vui lòng liên hệ quản trị.</div>
+            <div className="empty-state">No courses yet. Please contact admin.</div>
           )}
         </div>
       </section>
@@ -616,6 +726,11 @@ function AdminPage() {
   const [tab, setTab] = useState('users')
   const [userView, setUserView] = useState('teachers') // teachers | students
   const [query, setQuery] = useState('')
+  
+  const [editingPermissions, setEditingPermissions] = useState(null) // user object
+  const [permissionForm, setPermissionForm] = useState([]) // array of strings
+  const [savingPerms, setSavingPerms] = useState(false)
+
   useEffect(() => {
     const { token } = getAuth()
     if (!token) return
@@ -648,6 +763,7 @@ function AdminPage() {
   }
 
   function exportActivityCsv() {
+    // Theo dõi: xuất ActivityLog hiện tại ra CSV để phân tích/tuỳ biến báo cáo
     const cols = ['timestamp','user_id','action','target','status','ip_address','device_info']
     const list = Array.isArray(activity) ? activity : []
     function esc(v) { const s = v==null? '' : String(v).replace(/"/g,'""'); return '"' + s + '"' }
@@ -676,11 +792,11 @@ function AdminPage() {
 
   function validateTeacherForm(f) {
     const e = {}
-    if (!f.username || f.username.trim().length < 3) e.username = 'Tên đăng nhập tối thiểu 3 ký tự'
+    if (!f.username || f.username.trim().length < 3) e.username = 'Username must be at least 3 characters'
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!f.email || !emailRe.test(f.email)) e.email = 'Email không hợp lệ'
-    if (!f.full_name || f.full_name.trim().length < 2) e.full_name = 'Họ tên không được để trống'
-    if (!f.password || f.password.length < 6) e.password = 'Mật khẩu tối thiểu 6 ký tự'
+    if (!f.email || !emailRe.test(f.email)) e.email = 'Invalid email'
+    if (!f.full_name || f.full_name.trim().length < 2) e.full_name = 'Full name is required'
+    if (!f.password || f.password.length < 6) e.password = 'Password must be at least 6 characters'
     return e
   }
 
@@ -698,7 +814,7 @@ function AdminPage() {
       const res = await fetch('/admin/users/teacher', { method:'POST', headers: hdr, body: JSON.stringify(form) })
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Create failed')
-      alert('Đã tạo giáo viên: ' + json.username)
+      alert('Teacher created: ' + json.username)
       // refresh teachers
       fetch('/admin/users/teachers', { headers: { Authorization: `Bearer ${token}` } })
         .then(r=>r.json()).then(setTeachers).catch(()=>{})
@@ -728,6 +844,24 @@ function AdminPage() {
       setUpdating(false)
     }
   }
+
+  async function onDeleteUser(userId) {
+    if (!userId) return
+    if (!window.confirm('Bạn có chắc muốn xóa người dùng này không? Hành động này không thể hoàn tác.')) return
+    try {
+      const { token } = getAuth()
+      const hdr = { Authorization: `Bearer ${token}` }
+      const res = await fetch(`/admin/users/${encodeURIComponent(userId)}`, { method:'DELETE', headers: hdr })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || 'Delete failed')
+      setTeachers(prev => Array.isArray(prev) ? prev.filter(u => u._id !== userId) : prev)
+      setStudents(prev => Array.isArray(prev) ? prev.filter(u => u._id !== userId) : prev)
+      alert('Đã xóa người dùng')
+    } catch (err) {
+      alert(err.message || 'Delete user failed')
+    }
+  }
+
   async function onAdminRegenerateClassCode(classId) {
     if (!classId) return
     try {
@@ -761,30 +895,11 @@ function AdminPage() {
     }
   }
 
-  async function onAdminCopyCourseCode(code) {
-    try {
-      if (!code) return
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(code)
-        alert('Đã copy mã khoá')
-      } else {
-        const ta = document.createElement('textarea')
-        ta.value = code
-        document.body.appendChild(ta)
-        ta.select()
-        document.execCommand('copy')
-        document.body.removeChild(ta)
-        alert('Đã copy mã khoá')
-      }
-    } catch {
-      alert('Copy thất bại')
-    }
-  }
 
   function validateCourseForm(f) {
     const e = {}
-    if (!f.title || f.title.trim().length < 3) e.title = 'Tên khoá học tối thiểu 3 ký tự'
-    if (f.lecturer_id && !/^[0-9a-fA-F]{24}$/.test(f.lecturer_id)) e.lecturer_id = 'Giảng viên không hợp lệ'
+    if (!f.title || f.title.trim().length < 3) e.title = 'Course title must be at least 3 characters'
+    if (f.lecturer_id && !/^[0-9a-fA-F]{24}$/.test(f.lecturer_id)) e.lecturer_id = 'Invalid lecturer'
     return e
   }
 
@@ -805,7 +920,7 @@ function AdminPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Create failed')
       fetch('/admin/courses', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then(setCourses).catch(()=>{})
-      alert('Đã tạo khoá học. Mã: ' + (json.code||'—'))
+      alert('Course created')
       setCourseForm({ title:'', description:'', lecturer_id:'' })
       setCourseErrors({})
     } catch (err) {
@@ -815,9 +930,9 @@ function AdminPage() {
 
   function validateClassForm(f) {
     const e = {}
-    if (!f.name || f.name.trim().length < 1) e.name = 'Tên lớp không được để trống'
-    if (!f.course_id || !/^[0-9a-fA-F]{24}$/.test(f.course_id)) e.course_id = 'Khoá học không hợp lệ'
-    if (f.teacher_id && !/^[0-9a-fA-F]{24}$/.test(f.teacher_id)) e.teacher_id = 'Giáo viên không hợp lệ'
+    if (!f.name || f.name.trim().length < 1) e.name = 'Class name is required'
+    if (!f.course_id || !/^[0-9a-fA-F]{24}$/.test(f.course_id)) e.course_id = 'Invalid course'
+    if (f.teacher_id && !/^[0-9a-fA-F]{24}$/.test(f.teacher_id)) e.teacher_id = 'Invalid teacher'
     return e
   }
 
@@ -838,7 +953,7 @@ function AdminPage() {
       const json = await res.json()
       if (!res.ok) throw new Error(json?.error || 'Create failed')
       fetch('/admin/classes', { headers: { Authorization: `Bearer ${token}` } }).then(r=>r.json()).then(setClasses).catch(()=>{})
-      alert('Đã tạo lớp')
+      alert('Class created')
       setClassForm({ name:'', course_id:'', teacher_id:'' })
       setClassErrors({})
     } catch (err) {
@@ -852,6 +967,41 @@ function AdminPage() {
       if (!q) return true
       return [u.username, u.email, u.full_name].filter(Boolean).some(x => String(x).toLowerCase().includes(q))
     })
+
+  function openPermissionEditor(user) {
+    setEditingPermissions(user)
+    setPermissionForm(user.permissions || [])
+  }
+
+  async function savePermissions(e) {
+    e.preventDefault()
+    if (!editingPermissions) return
+    setSavingPerms(true)
+    const { token } = getAuth()
+    try {
+      const res = await api(`/admin/users/${editingPermissions._id}/permissions`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ permissions: permissionForm })
+      })
+      // Update local state
+      setTeachers(teachers.map(t => t._id === res.id ? { ...t, permissions: res.permissions } : t))
+      setEditingPermissions(null)
+      alert('Permissions updated successfully')
+    } catch (err) {
+      alert(err?.data?.error || 'Failed to update permissions')
+    } finally {
+      setSavingPerms(false)
+    }
+  }
+
+  function togglePermission(perm) {
+    if (permissionForm.includes(perm)) {
+      setPermissionForm(permissionForm.filter(p => p !== perm))
+    } else {
+      setPermissionForm([...permissionForm, perm])
+    }
+  }
 
   const stats = {
     students: Array.isArray(students) ? students.length : 0,
@@ -884,7 +1034,7 @@ function AdminPage() {
       <section className="admin-hero">
         <div>
           <h1>Admin Control Center</h1>
-          <div className="sub">Quyền cao nhất — giám sát hệ thống</div>
+          <div className="sub">Highest privileges — system oversight</div>
         </div>
         <div className="hero-stats">
           <div className="stat-card"><div className="label">Students</div><div className="value">{stats.students}</div></div>
@@ -895,27 +1045,27 @@ function AdminPage() {
       </section>
 
       <section className="admin-section">
-        <div className="section-head"><h2>Quản trị</h2></div>
+        <div className="section-head"><h2>Administration</h2></div>
         <div className="tabs">
-          <div className={"tab " + (tab==='users'?'active':'')} onClick={()=>setTab('users')}>Tài khoản</div>
-          <div className={"tab " + (tab==='courses'?'active':'')} onClick={()=>setTab('courses')}>Khoá học</div>
-          <div className={"tab " + (tab==='enrollments'?'active':'')} onClick={()=>setTab('enrollments')}>Ghi danh</div>
-          <div className={"tab " + (tab==='activity'?'active':'')} onClick={()=>setTab('activity')}>Hoạt động</div>
+          <div className={"tab " + (tab==='users'?'active':'')} onClick={()=>setTab('users')}>Accounts</div>
+          <div className={"tab " + (tab==='courses'?'active':'')} onClick={()=>setTab('courses')}>Courses</div>
+          <div className={"tab " + (tab==='enrollments'?'active':'')} onClick={()=>setTab('enrollments')}>Enrollments</div>
+          <div className={"tab " + (tab==='activity'?'active':'')} onClick={()=>setTab('activity')}>Activity</div>
         </div>
 
         {tab === 'users' && (
           <div>
             <div className="subtabs">
-              <div className={"subtab " + (userView==='teachers'?'active':'')} onClick={()=>setUserView('teachers')}>Giáo viên</div>
-              <div className={"subtab " + (userView==='students'?'active':'')} onClick={()=>setUserView('students')}>Học viên</div>
+              <div className={"subtab " + (userView==='teachers'?'active':'')} onClick={()=>setUserView('teachers')}>Teachers</div>
+              <div className={"subtab " + (userView==='students'?'active':'')} onClick={()=>setUserView('students')}>Students</div>
             </div>
 
             {userView==='teachers' && (
               <div className="panel">
-                <h3 className="panel-title">Tạo giáo viên</h3>
-                <form className="stack-form" onSubmit={onCreateTeacher} aria-label="Tạo giáo viên">
+                <h3 className="panel-title">Create Teacher</h3>
+                <form className="stack-form" onSubmit={onCreateTeacher} aria-label="Create teacher">
                   <div className="field">
-                    <input type="text" aria-label="Tên đăng nhập" placeholder="Tên đăng nhập" value={form.username} aria-invalid={!!errors.username} onChange={e=>{ setForm({ ...form, username: e.target.value }); if (errors.username) setErrors({ ...errors, username: undefined }) }} />
+                    <input type="text" aria-label="Username" placeholder="Username" value={form.username} aria-invalid={!!errors.username} onChange={e=>{ setForm({ ...form, username: e.target.value }); if (errors.username) setErrors({ ...errors, username: undefined }) }} />
                     {errors.username && <div className="form-error">{errors.username}</div>}
                   </div>
                   <div className="field">
@@ -923,32 +1073,32 @@ function AdminPage() {
                     {errors.email && <div className="form-error">{errors.email}</div>}
                   </div>
                   <div className="field">
-                    <input type="text" aria-label="Họ tên" placeholder="Họ tên" value={form.full_name} aria-invalid={!!errors.full_name} onChange={e=>{ setForm({ ...form, full_name: e.target.value }); if (errors.full_name) setErrors({ ...errors, full_name: undefined }) }} />
+                    <input type="text" aria-label="Full name" placeholder="Full name" value={form.full_name} aria-invalid={!!errors.full_name} onChange={e=>{ setForm({ ...form, full_name: e.target.value }); if (errors.full_name) setErrors({ ...errors, full_name: undefined }) }} />
                     {errors.full_name && <div className="form-error">{errors.full_name}</div>}
                   </div>
                   <div className="field">
-                    <input type="password" aria-label="Mật khẩu" placeholder="Mật khẩu" value={form.password} aria-invalid={!!errors.password} onChange={e=>{ setForm({ ...form, password: e.target.value }); if (errors.password) setErrors({ ...errors, password: undefined }) }} />
+                    <input type="password" aria-label="Password" placeholder="Password" value={form.password} aria-invalid={!!errors.password} onChange={e=>{ setForm({ ...form, password: e.target.value }); if (errors.password) setErrors({ ...errors, password: undefined }) }} />
                     {errors.password && <div className="form-error">{errors.password}</div>}
                   </div>
-                  <button className="btn" disabled={creating} type="submit">{creating? 'Đang tạo...' : 'Tạo giáo viên'}</button>
+                  <button className="btn" disabled={creating} type="submit">{creating? 'Creating...' : 'Create teacher'}</button>
                 </form>
               </div>
             )}
 
             <div className="panel">
               <div className="list-head">
-                <div className="list-count">Tổng: {usersFiltered.length}</div>
+                <div className="list-count">Total: {usersFiltered.length}</div>
                 <div className="filter-bar">
-                  <input type="text" placeholder="Tìm theo tên, email..." value={query} onChange={e=>setQuery(e.target.value)} />
+                  <input type="text" placeholder="Search by name, email..." value={query} onChange={e=>setQuery(e.target.value)} />
                 </div>
               </div>
 
               <div className="data-table">
                 <div className="row head">
-                  <div>Username</div><div>Email</div><div>Trạng thái</div><div>Ngày tạo</div><div>Hành động</div>
+                  <div>Username</div><div>Email</div><div>Status</div><div>Created At</div><div>Actions</div>
                 </div>
                 {usersFiltered.length === 0 ? (
-                  <div className="empty-state">Không có người dùng phù hợp</div>
+                  <div className="empty-state">No matching users</div>
                 ) : (
                   usersFiltered.map((u,i)=> (
                     <div key={u._id||i} className="row">
@@ -956,12 +1106,14 @@ function AdminPage() {
                       <div>{u.email||'—'}</div>
                       <div><span className={`status-badge ${u.status}`}>{u.status}</span></div>
                       <div>{new Date(u.created_at).toLocaleString()}</div>
-                      <div>
+                      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                        {userView === 'teachers' && <button className="btn btn-sm" onClick={()=>openPermissionEditor(u)}>Permissions</button>}
                         <select defaultValue={u.status} onChange={(e)=>onUpdateUserStatus(u._id, e.target.value)} disabled={updating}>
                           <option value="active">active</option>
                           <option value="inactive">inactive</option>
                           <option value="blocked">blocked</option>
                         </select>
+                        <button className="btn btn-sm" onClick={()=>onDeleteUser(u._id)} style={{ backgroundColor:'#ef4444', color:'#fff', border:'none' }}>Xóa</button>
                       </div>
                     </div>
                   ))
@@ -974,45 +1126,37 @@ function AdminPage() {
         {tab === 'courses' && (
           <div>
             <div className="panel">
-              <h3 className="panel-title">Tạo khoá học</h3>
-              <form className="inline-form" onSubmit={onCreateCourse} aria-label="Tạo khoá học">
+              <h3 className="panel-title">Create Course</h3>
+              <form className="inline-form" onSubmit={onCreateCourse} aria-label="Create course">
                 <div className="field">
-                  <input type="text" placeholder="Tên khoá học" value={courseForm.title} aria-invalid={!!courseErrors.title} onChange={e=>{ setCourseForm({ ...courseForm, title: e.target.value }); if (courseErrors.title) setCourseErrors({ ...courseErrors, title: undefined }) }} />
+                  <input type="text" placeholder="Course title" value={courseForm.title} aria-invalid={!!courseErrors.title} onChange={e=>{ setCourseForm({ ...courseForm, title: e.target.value }); if (courseErrors.title) setCourseErrors({ ...courseErrors, title: undefined }) }} />
                   {courseErrors.title && <div className="form-error">{courseErrors.title}</div>}
                 </div>
                 <div className="field">
-                  <input type="text" placeholder="Mô tả" value={courseForm.description} onChange={e=> setCourseForm({ ...courseForm, description: e.target.value })} />
+                  <input type="text" placeholder="Description" value={courseForm.description} onChange={e=> setCourseForm({ ...courseForm, description: e.target.value })} />
                 </div>
                 <div className="field">
                   <select value={courseForm.lecturer_id} onChange={e=>{ setCourseForm({ ...courseForm, lecturer_id: e.target.value }); if (courseErrors.lecturer_id) setCourseErrors({ ...courseErrors, lecturer_id: undefined }) }}>
-                    <option value="">Giảng viên (tuỳ chọn)</option>
+                    <option value="">Lecturer (optional)</option>
                     {(Array.isArray(teachers)?teachers:[]).map(t => (
                       <option key={t._id} value={t._id}>{t.full_name || t.username}</option>
                     ))}
                   </select>
                   {courseErrors.lecturer_id && <div className="form-error">{courseErrors.lecturer_id}</div>}
                 </div>
-                <button className="btn" disabled={creatingCourse} type="submit">{creatingCourse? 'Đang tạo...' : 'Tạo khoá học'}</button>
+                <button className="btn" disabled={creatingCourse} type="submit">{creatingCourse? 'Creating...' : 'Create course'}</button>
               </form>
             </div>
 
             <div className="panel" style={{ marginTop: 16 }}>
-              <h3 className="panel-title">Danh sách khoá học</h3>
-              <div className="data-table cols-6">
+              <h3 className="panel-title">Course List</h3>
+              <div className="data-table">
                 <div className="row head">
-                  <div>Tên</div><div>Mã khoá</div><div>Giảng viên</div><div>Trạng thái</div><div>Ngày tạo</div><div>—</div>
+                  <div>Title</div><div>Lecturer</div><div>Status</div><div>Created At</div><div>—</div>
                 </div>
                 {(Array.isArray(courses)?courses:[]).map((c,i)=> (
                   <div key={i} className="row">
                     <div>{c.title}</div>
-                    <div>
-                      <div className="code-badge">{c.code||'—'}</div>
-                      {c.code && (
-                        <div className="code-actions">
-                          <button className="btn btn-sm" type="button" onClick={()=>onAdminCopyCourseCode(c.code)}>Copy</button>
-                        </div>
-                      )}
-                    </div>
                     <div>{displayTeacherName(c.lecturer_id)}</div>
                     <div><span className={`status-badge ${c.status}`}>{c.status}</span></div>
                     <div>{new Date(c.created_at).toLocaleString()}</div>
@@ -1023,16 +1167,16 @@ function AdminPage() {
             </div>
 
             <div className="panel" style={{ marginTop: 24 }}>
-              <h3 className="panel-title">Tạo lớp</h3>
+              <h3 className="panel-title">Create Class</h3>
               <form className="inline-form" onSubmit={onCreateClass} aria-label="Tạo lớp">
                 <div className="field">
-                  <label>Tên lớp</label>
-                  <input type="text" placeholder="Nhập tên lớp" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
+                  <label>Class name</label>
+                  <input type="text" placeholder="Enter class name" value={classForm.name} required aria-invalid={!!classErrors.name} onChange={e=>{ setClassForm({ ...classForm, name: e.target.value }); if (classErrors.name) setClassErrors({ ...classErrors, name: undefined }) }} />
                   {classErrors.name && <div className="form-error">{classErrors.name}</div>}
                 </div>
                 <div className="field">
                   <select value={classForm.course_id} onChange={e=>{ setClassForm({ ...classForm, course_id: e.target.value }); if (classErrors.course_id) setClassErrors({ ...classErrors, course_id: undefined }) }}>
-                    <option value="">Chọn khoá học</option>
+                    <option value="">Select course</option>
                     {(Array.isArray(courses)?courses:[]).map(c => (
                       <option key={c._id||c.id} value={c._id||c.id}>{c.title}</option>
                     ))}
@@ -1041,22 +1185,22 @@ function AdminPage() {
                 </div>
                 <div className="field">
                   <select value={classForm.teacher_id} onChange={e=>{ setClassForm({ ...classForm, teacher_id: e.target.value }); if (classErrors.teacher_id) setClassErrors({ ...classErrors, teacher_id: undefined }) }}>
-                    <option value="">Giáo viên (tuỳ chọn)</option>
+                    <option value="">Teacher (optional)</option>
                     {(Array.isArray(teachers)?teachers:[]).map(t => (
                       <option key={t._id} value={t._id}>{t.full_name || t.username}</option>
                     ))}
                   </select>
                   {classErrors.teacher_id && <div className="form-error">{classErrors.teacher_id}</div>}
                 </div>
-                <button className="btn" disabled={creatingClass} type="submit">{creatingClass? 'Đang tạo...' : 'Tạo lớp'}</button>
+                <button className="btn" disabled={creatingClass} type="submit">{creatingClass? 'Creating...' : 'Create class'}</button>
               </form>
             </div>
 
             <div className="panel" style={{ marginTop: 16 }}>
-              <h3 className="panel-title">Danh sách lớp</h3>
+              <h3 className="panel-title">Class List</h3>
               <div className="data-table cols-6">
                 <div className="row head">
-                  <div>Tên lớp</div><div>Khoá học</div><div>Mã lớp</div><div>Giáo viên</div><div>Trạng thái</div><div>Ngày tạo</div>
+                  <div>Class Name</div><div>Course</div><div>Class Code</div><div>Teacher</div><div>Status</div><div>Created At</div>
                 </div>
                 {(Array.isArray(classes)?classes:[]).map((cl,i)=> (
                   <div key={i} className="row">
@@ -1066,7 +1210,7 @@ function AdminPage() {
                       <div>{cl.join_code||'—'}</div>
                       <div style={{ display:'flex', gap:8, marginTop:6 }}>
                         <button className="btn btn-sm" type="button" onClick={()=>onAdminCopyJoinCode(cl.join_code)}>Copy</button>
-                        <button className="btn btn-sm" type="button" onClick={()=>onAdminRegenerateClassCode(cl._id)}>Đổi mã</button>
+                        <button className="btn btn-sm" type="button" onClick={()=>onAdminRegenerateClassCode(cl._id)}>Regenerate code</button>
                       </div>
                     </div>
                     <div>{displayTeacherName(cl.teacher_id)}</div>
@@ -1082,7 +1226,7 @@ function AdminPage() {
         {tab === 'enrollments' && (
           <div className="data-table">
             <div className="row head">
-              <div>Student</div><div>Course</div><div>Trạng thái</div><div>Thời gian</div><div>—</div>
+              <div>Student</div><div>Course</div><div>Status</div><div>Time</div><div>—</div>
             </div>
             {(Array.isArray(enrollments)?enrollments:[]).map((e,i)=> (
               <div key={i} className="row">
@@ -1099,14 +1243,14 @@ function AdminPage() {
         {tab === 'activity' && (
           <div className="activity-section">
             <div className="panel">
-              <h3 className="panel-title">Hoạt động hệ thống</h3>
-              <form className="inline-form" onSubmit={onApplyActivityFilter} aria-label="Lọc hoạt động">
+              <h3 className="panel-title">System Activity</h3>
+              <form className="inline-form" onSubmit={onApplyActivityFilter} aria-label="Filter activity">
                 <div className="field">
                   <input type="text" placeholder="User ID" value={activityFilter.userId} onChange={e=>setActivityFilter({ ...activityFilter, userId: e.target.value })} />
                 </div>
                 <div className="field">
                   <select value={activityFilter.status} onChange={e=>setActivityFilter({ ...activityFilter, status: e.target.value })}>
-                    <option value="">Tất cả trạng thái</option>
+                    <option value="">All statuses</option>
                     <option value="200">200</option>
                     <option value="401">401</option>
                     <option value="403">403</option>
@@ -1122,13 +1266,40 @@ function AdminPage() {
                     <option value="200">200</option>
                   </select>
                 </div>
-                <button className="btn" type="submit">Lọc</button>
-                <button className="btn btn-sm" type="button" onClick={exportActivityCsv}>Xuất CSV</button>
+                <button className="btn" type="submit">Filter</button>
+                <button className="btn btn-sm" type="button" onClick={exportActivityCsv}>Export CSV</button>
                 <div className="field">
-                  <input type="text" placeholder="Tìm theo tên/hành động/IP/thiết bị" value={activitySearch} onChange={e=>setActivitySearch(e.target.value)} />
+                  <input type="text" placeholder="Search by name/action/IP/device" value={activitySearch} onChange={e=>setActivitySearch(e.target.value)} />
                 </div>
               </form>
               <ActivityList items={activityDisplay} />
+            </div>
+          </div>
+        )}
+
+        {editingPermissions && (
+          <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+            <div style={{ background:'#fff', padding:24, borderRadius:12, width:600, maxWidth:'90vw', maxHeight:'90vh', overflowY:'auto' }}>
+              <h3 style={{ marginTop:0 }}>Manage Permissions: {editingPermissions.username}</h3>
+              <form onSubmit={savePermissions}>
+                {Object.entries(PERMISSION_GROUPS).map(([group, perms]) => (
+                  <div key={group} style={{ marginBottom: 16 }}>
+                    <h4 style={{ margin:'0 0 8px', color:'#0a4ea8' }}>{group}</h4>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      {perms.map(p => (
+                        <label key={p} style={{ display:'flex', gap:8, alignItems:'center', fontSize:14, cursor:'pointer' }}>
+                          <input type="checkbox" checked={permissionForm.includes(p)} onChange={()=>togglePermission(p)} />
+                          {PERMISSION_LABELS[p] || p}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display:'flex', gap:12, marginTop:24, justifyContent:'flex-end' }}>
+                  <button type="button" className="btn" style={{ background:'#eee', color:'#333' }} onClick={()=>setEditingPermissions(null)}>Cancel</button>
+                  <button type="submit" className="btn" disabled={savingPerms}>{savingPerms?'Saving...':'Save Changes'}</button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -6,6 +6,7 @@ const router = express.Router();
 // Get my activity logs
 router.get("/activity", async (req, res) => {
   try {
+    // Theo dõi: trả về nhật ký hoạt động của chính người dùng hiện tại (theo user_id)
     const { limit = 50 } = req.query;
     const items = await ActivityLog.find({ user_id: req.user.id })
       .sort({ timestamp: -1 })
@@ -21,7 +22,7 @@ router.get("/activity", async (req, res) => {
 router.get("/profile", async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .select("username email full_name role")
+      .select("username email full_name role permissions")
       .lean();
     if (!user) return res.status(404).json({ error: "User not found" });
     return res.status(200).json(user);
@@ -46,6 +47,7 @@ router.get("/enrollments", async (req, res) => {
 // Trust status for current device
 router.get("/trust-status", async (req, res) => {
   try {
+    // Zero Trust: kiểm tra trạng thái tin cậy của thiết bị hiện tại và IP
     const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.ip;
     const device = req.headers["user-agent"] || "unknown";
     const isInternalIp = /^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.)/.test(ip);

@@ -17,13 +17,23 @@ export async function connectDB() {
     });
     const safeUri = uri.replace(/\/\/.*@/, "//***@");
     console.log(`MongoDB connected: ${safeUri} (db: ${dbName})`);
-    const courseCollection = mongoose.connection.collection("courses");
-    const indexes = await courseCollection.indexes();
-    const codeIndex = indexes.find((idx) => idx.name === "code_1");
-    if (codeIndex) {
-      await courseCollection.dropIndex("code_1");
-      console.log("Dropped code_1 index from courses (will recreate safely)");
+    
+    try {
+      const courseCollection = mongoose.connection.collection("courses");
+      // Check if collection exists to avoid error on .indexes()
+      const collections = await mongoose.connection.db.listCollections({ name: "courses" }).toArray();
+      if (collections.length > 0) {
+        const indexes = await courseCollection.indexes();
+        const codeIndex = indexes.find((idx) => idx.name === "code_1");
+        if (codeIndex) {
+          await courseCollection.dropIndex("code_1");
+          console.log("Dropped code_1 index from courses (will recreate safely)");
+        }
+      }
+    } catch (idxErr) {
+      console.warn("Index cleanup warning (ignored):", idxErr.message);
     }
+
     await Course.syncIndexes();
   } catch (err) {
     console.error("MongoDB connection error:", err.message);

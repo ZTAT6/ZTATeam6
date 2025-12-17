@@ -3,6 +3,7 @@ import { User, Session } from "../models/index.js";
 
 export async function authMiddleware(req, res, next) {
   try {
+    // Zero Trust: bắt buộc có JWT hợp lệ và phiên còn hiệu lực
     const authHeader = req.headers.authorization || "";
     const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) return res.status(401).json({ error: "Unauthorized" });
@@ -14,7 +15,12 @@ export async function authMiddleware(req, res, next) {
     const user = await User.findById(payload.sub).lean();
     if (!user || user.status !== "active") return res.status(401).json({ error: "User inactive" });
 
-    req.user = { id: user._id.toString(), role: user.role, username: user.username };
+    req.user = { 
+      id: user._id.toString(), 
+      role: user.role, 
+      username: user.username,
+      permissions: user.permissions || [] 
+    };
     next();
   } catch (err) {
     return res.status(401).json({ error: "Unauthorized" });
@@ -23,8 +29,26 @@ export async function authMiddleware(req, res, next) {
 
 export function requireRole(role) {
   return (req, res, next) => {
+    // Zero Trust: kiểm tra vai trò truy cập endpoint
     if (!req.user || req.user.role !== role) {
       return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  };
+}
+
+export function requirePermission(permission) {
+  return (req, res, next) => {
+    // Zero Trust: Check granular permission
+    if (!req.user) return res.status(401).json({ error: "Unauthorized" });
+    
+    // Admin always has access (unless we want to restrict admins too, but usually admins are superusers)
+    // However, for strict Zero Trust, maybe we should check admin permissions too? 
+    // For now, let's assume Admin is superuser or the permissions are specifically for Teachers.
+    if (req.user.role === 'admin') return next();
+
+    if (!req.user.permissions || !req.user.permissions.includes(permission)) {
+      return res.status(403).json({ error: `Missing permission: ${permission}` });
     }
     next();
   };

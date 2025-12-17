@@ -6,6 +6,7 @@ import { Classroom, ClassMember, Enrollment } from "../models/index.js"
 
 const router = express.Router()
 
+// Zero Trust: phân quyền – chỉ người dùng vai trò 'student' mới được truy cập
 router.use(requireRole("student"))
 
 router.post(

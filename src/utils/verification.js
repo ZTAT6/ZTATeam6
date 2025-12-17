@@ -52,23 +52,9 @@ export async function sendVerificationEmail({ to, code }) {
   const from = process.env.EMAIL_FROM || "no-reply@example.com";
 
   if (!host || !user || !pass) {
-    const account = await nodemailer.createTestAccount();
-    const transporter = nodemailer.createTransport({
-      host: account.smtp.host,
-      port: account.smtp.port,
-      secure: account.smtp.secure,
-      auth: { user: account.user, pass: account.pass },
-    });
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject: "Your verification code",
-      text: `Your verification code is: ${code}`,
-      html: `<p>Your verification code is: <strong>${code}</strong></p>`,
-    });
-    const previewUrl = nodemailer.getTestMessageUrl(info);
-    console.log(`[dev] Email verification preview: ${previewUrl}`);
-    return { messageId: info.messageId, dev: true, previewUrl };
+    console.log(`[dev] Email verification code for ${to}: ${code}`);
+    // Return mock success without calling external createTestAccount
+    return { dev: true };
   }
 
   const transporter = nodemailer.createTransport({
