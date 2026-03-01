@@ -8,14 +8,11 @@ import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import morgan from "morgan";
-import mongoose from "mongoose";
 
 import { connectDB } from "./config/db.js";
 import authRoutes from "./routes/auth.js";
 import adminRoutes from "./routes/admin.js";
 import meRoutes from "./routes/me.js";
-import studentRoutes from "./routes/student.js";
-import teacherRoutes from "./routes/teacher.js";
 import { authMiddleware } from "./middlewares/auth.js";
 import { activityLogger } from "./middlewares/activityLogger.js";
 
@@ -58,50 +55,22 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// In production, serve the React build from client/dist
-const clientDist = path.join(__dirname, "..", "client", "dist");
+// In production, serve the React build from frontend/dist
+const clientDist = path.join(__dirname, "..", "..", "frontend", "dist");
 app.use(express.static(clientDist));
 
 // Routes
 app.use("/auth", authRoutes);
 app.use("/admin", authMiddleware, activityLogger, adminRoutes);
-app.use("/teacher", authMiddleware, activityLogger, teacherRoutes);
 app.use("/me", authMiddleware, activityLogger, meRoutes);
-app.use("/student", authMiddleware, activityLogger, studentRoutes);
 
 // Health
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Health (DB details)
-app.get("/health/db", async (req, res) => {
-  try {
-    const state = mongoose.connection.readyState; // 0,1,2,3
-    const stateMap = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
-    let pingOk = false;
-    try {
-      const pingRes = await mongoose.connection.db.admin().ping();
-      pingOk = !!pingRes?.ok;
-    } catch (_) {}
-    return res.status(200).json({
-      status: "ok",
-      db: {
-        readyState: state,
-        readyStateText: stateMap[state] || String(state),
-        name: mongoose.connection.name,
-        host: mongoose.connection.host,
-        port: mongoose.connection.port,
-        pingOk,
-      },
-    });
-  } catch (e) {
-    return res.status(500).json({ status: "error", error: e?.message || String(e) });
-  }
-});
-
 // SPA fallback: match any route NOT starting with /auth, /admin, /me, /health
-app.get(/^(?!\/(auth|admin|teacher|student|me|health)).*/, (req, res) => {
+app.get(/^(?!\/(auth|admin|me|health)).*/, (req, res) => {
   return res.sendFile(path.join(clientDist, "index.html"));
 });
 
